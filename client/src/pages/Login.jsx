@@ -1,191 +1,182 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Mail, Lock, Eye, EyeOff, Sparkles, ArrowRight, ShieldCheck, GraduationCap } from 'lucide-react';
-
-// Import logo from assets with fallback
 import logo from '../assets/logo.png';
 
 export default function Login() {
+  const [isSignUp, setIsSignUp] = useState(false);
+
+  // Sign In State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e?.preventDefault();
+  // Sign Up State
+  const [fullName, setFullName] = useState('');
+  const [signUpEmail, setSignUpEmail] = useState('');
+  const [signUpPassword, setSignUpPassword] = useState('');
+
+  // Messages & Loading
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const navigate = useNavigate();
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+  // Handle Login
+  const handleSignIn = async (e) => {
+    e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/v1/auth/login', {
-        email,
-        password
-      });
+      const res = await axios.post(`${API_BASE}/api/v1/auth/login`, { email, password });
+      const { token, role, userName, email: userEmail, user_id } = res.data;
 
-      console.log("Backend response data:", response.data);
-
-      const token = response.data.token;
-      const role = response.data.role || response.data.user?.role;
-      const name = response.data.name || response.data.full_name || response.data.user?.full_name || response.data.user?.name;
-
-      if (!token || !role) {
-        throw new Error("Invalid response structure. Missing token or user role.");
-      }
-
+      // Save user session in localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('role', role);
-      localStorage.setItem('userName', name || 'User'); 
+      localStorage.setItem('userName', userName || 'Student');
+      localStorage.setItem('userEmail', userEmail || email);
+      localStorage.setItem('userId', user_id);
 
-      if (role === 'instructor' || role === 'super_admin') {
-        navigate('/instructor');
-      } else {
+      if (role === 'student') {
         navigate('/student');
+      } else {
+        navigate('/instructor');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to authenticate. Check server connection.');
+      setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
   };
 
-  // One-click demo credentials helper
-  const fillDemoStudent = () => {
-    setEmail('student@portal.com');
-    setPassword('student123');
+  // Handle New Student Registration
+  const handleSignUp = async (e) => {
+    e.preventDefault();
     setError('');
-  };
+    setSuccess('');
+    setLoading(true);
 
-  const fillDemoInstructor = () => {
-    setEmail('instructor@portal.com');
-    setPassword('instructor123');
-    setError('');
+    try {
+      await axios.post(`${API_BASE}/api/v1/auth/signup`, {
+        full_name: fullName,
+        email: signUpEmail,
+        password: signUpPassword,
+        role: 'student'
+      });
+
+      setSuccess('Student profile created! Please sign in with your email and password.');
+      setEmail(signUpEmail);
+      setFullName('');
+      setSignUpEmail('');
+      setSignUpPassword('');
+
+      // Auto switch back to Sign In after 1.5 seconds
+      setTimeout(() => {
+        setIsSignUp(false);
+      }, 1500);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Registration failed. Email may already be in use.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-slate-50">
-      
-      {/* Decorative Ambient Background Glow Orbs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-400/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-400/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-[30%] right-[15%] w-[300px] h-[300px] bg-sky-300/30 rounded-full blur-2xl pointer-events-none" />
-
-      {/* Main Frosted Glass Login Card */}
-      <div className="relative z-10 bg-white/85 backdrop-blur-xl max-w-md w-full p-8 rounded-3xl shadow-2xl border border-white/80 text-center">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 flex items-center justify-center p-4">
+      <div className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-xl border border-blue-100 max-w-md w-full">
         
-        {/* Top Portal Badge */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-[11px] font-bold tracking-wide uppercase mb-4">
-          <Sparkles size={13} className="text-blue-600" /> Live Learning Portal
-        </div>
-
-        {/* Logo Container */}
-        <div className="relative mx-auto mb-3 p-3 bg-gradient-to-b from-white to-blue-50/60 rounded-2xl border border-blue-100 shadow-md inline-block">
-          <img 
-            src={logo} 
-            alt="AvaIntern Logo" 
-            className="h-12 w-auto object-contain"
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = '/logo.png';
-            }}
-          />
-        </div>
-
-        <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-          Welcome Back
-        </h2>
-        <p className="mt-1 text-xs font-medium text-slate-500 mb-6">
-          Sign in to access your live classes, recordings & coursework
-        </p>
-
-        {/* Form Error Alert */}
-        {error && (
-          <div className="mb-4 text-xs p-3 rounded-xl bg-red-50/90 text-red-600 border border-red-200 text-left font-medium">
-            {error}
-          </div>
-        )}
-
-        {/* Form */}
-        <form onSubmit={handleLogin} className="space-y-4 text-left">
-          
-          {/* Email Input */}
-          <div>
-            <label className="text-xs font-bold text-slate-700 mb-1 block">Email Address</label>
-            <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type="email"
-                required
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-                placeholder="you@portal.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Password Input with Visibility Toggle */}
-          <div>
-            <label className="text-xs font-bold text-slate-700 mb-1 block">Password</label>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                className="w-full pl-10 pr-10 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-2 py-3 px-4 flex items-center justify-center gap-2 text-sm font-semibold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 transition-all duration-200 shadow-lg shadow-indigo-200"
-          >
-            <span>{loading ? 'Authenticating...' : 'Sign In to Portal'}</span>
-            {!loading && <ArrowRight size={16} />}
-          </button>
-        </form>
-
-        {/* Quick Demo Credentials Panel */}
-        <div className="mt-6 pt-5 border-t border-slate-200/60">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
-            ⚡ Quick Demo Auto-Fill
+        {/* Logo & Title */}
+        <div className="text-center mb-6">
+          <img src={logo} alt="AvaIntern Logo" className="h-10 w-auto mx-auto mb-2 object-contain" />
+          <h2 className="text-2xl font-extrabold text-blue-950">Live Learning Portal</h2>
+          <p className="text-xs text-blue-600 mt-1">
+            {isSignUp ? 'Register a new student account' : 'Sign in to access your personal student portal'}
           </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={fillDemoStudent}
-              className="px-3 py-1.5 bg-blue-50/80 hover:bg-blue-100/80 text-blue-700 text-xs font-semibold rounded-lg border border-blue-100 transition flex items-center justify-center gap-1.5"
-            >
-              <GraduationCap size={14} /> Student
-            </button>
-            <button
-              type="button"
-              onClick={fillDemoInstructor}
-              className="px-3 py-1.5 bg-indigo-50/80 hover:bg-indigo-100/80 text-indigo-700 text-xs font-semibold rounded-lg border border-indigo-100 transition flex items-center justify-center gap-1.5"
-            >
-              <ShieldCheck size={14} /> Instructor
-            </button>
-          </div>
         </div>
 
-        <p className="mt-5 text-[11px] text-slate-400">
-          AvaIntern Synchronous Learning & Assessment System
-        </p>
+        {/* Tab Toggle Buttons */}
+        <div className="flex bg-blue-50/80 p-1 rounded-xl mb-6 border border-blue-100">
+          <button
+            type="button"
+            onClick={() => { setIsSignUp(false); setError(''); setSuccess(''); }}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
+              !isSignUp ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-700 hover:text-blue-900'
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => { setIsSignUp(true); setError(''); setSuccess(''); }}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
+              isSignUp ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-700 hover:text-blue-900'
+            }`}
+          >
+            New Student Sign Up
+          </button>
+        </div>
+
+        {error && <div className="mb-4 text-xs p-3 rounded-lg bg-red-50 text-red-600 border border-red-200 font-medium">{error}</div>}
+        {success && <div className="mb-4 text-xs p-3 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">{success}</div>}
+
+        {/* SIGN IN FORM */}
+        {!isSignUp ? (
+          <form onSubmit={handleSignIn} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label>
+              <input
+                type="email" required
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-gray-50/50"
+                placeholder="you@portal.com" value={email} onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Password</label>
+              <input
+                type="password" required
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-gray-50/50"
+                placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            <button type="submit" disabled={loading} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-md transition">
+              {loading ? 'Signing in...' : 'Sign In to Portal →'}
+            </button>
+          </form>
+        ) : (
+          /* NEW STUDENT SIGN UP FORM */
+          <form onSubmit={handleSignUp} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Full Name</label>
+              <input
+                type="text" required
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-gray-50/50"
+                placeholder="e.g. Rahul Sharma" value={fullName} onChange={(e) => setFullName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Desired Email Address</label>
+              <input
+                type="email" required
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-gray-50/50"
+                placeholder="rahul@portal.com" value={signUpEmail} onChange={(e) => setSignUpEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Password</label>
+              <input
+                type="password" required minLength="6"
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-gray-50/50"
+                placeholder="At least 6 characters" value={signUpPassword} onChange={(e) => setSignUpPassword(e.target.value)}
+              />
+            </div>
+            <button type="submit" disabled={loading} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-md transition">
+              {loading ? 'Creating Account...' : 'Create Student Profile ✨'}
+            </button>
+          </form>
+        )}
 
       </div>
     </div>

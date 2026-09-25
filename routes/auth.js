@@ -74,16 +74,14 @@ router.post('/login', async (req, res) => {
         );
 
         // 5. Send back success message, token, and user details
-        res.json({
-            message: 'Login successful!',
-            token,
-            user: {
-                id: user.user_id,
-                full_name: user.full_name,
-                email: user.email,
-                role: user.role
-            }
-        });
+       res.json({
+  message: 'Login successful!',
+  token,
+  role: user.role,
+  userName: user.full_name,
+  email: user.email,
+  user_id: user.user_id
+});
     } catch (err) {
         console.error("Login Database Error:", err);
         res.status(500).json({ error: 'Database error occurred during login.', details: err.message });
@@ -91,3 +89,30 @@ router.post('/login', async (req, res) => {
 });
 
 module.exports = router;
+router.post('/signup', async (req, res) => {
+  const { full_name, email, password, role } = req.body;
+
+  if (!full_name || !email || !password) {
+    return res.status(400).json({ error: 'Full name, email, and password are required.' });
+  }
+
+  try {
+    const [existing] = await db.query('SELECT user_id FROM users WHERE email = ?', [email]);
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'This email address is already registered.' });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+    const userRole = role || 'student';
+
+    const [result] = await db.query(
+      'INSERT INTO users (full_name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+      [full_name, email, password_hash, userRole]
+    );
+
+    res.status(201).json({ message: 'Student account created successfully!', user_id: result.insertId });
+  } catch (err) {
+    console.error('Signup Error:', err);
+    res.status(500).json({ error: 'Internal server error during registration.' });
+  }
+});

@@ -5,7 +5,24 @@ import { Video, BookOpen, Clock, LogOut, Send, X, ExternalLink, Users, Award } f
 
 // 1. Single logo import
 import logo from '../assets/logo.png';
-
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+<div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-100 mb-6 flex items-center justify-between col-span-full">
+  <div className="flex items-center gap-4">
+    <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xl font-black shadow-md">
+      {(localStorage.getItem('userName') || 'S').charAt(0).toUpperCase()}
+    </div>
+    <div>
+      <h2 className="text-xl font-bold text-gray-900">{localStorage.getItem('userName') || 'Student'}</h2>
+      <p className="text-xs text-gray-500 mt-0.5">{localStorage.getItem('userEmail') || 'Registered Profile'}</p>
+      <div className="flex items-center gap-2 mt-1.5">
+        <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200 capitalize">
+          Role: {localStorage.getItem('role') || 'student'}
+        </span>
+        <span className="text-xs text-emerald-600 font-medium">● Active Workspace</span>
+      </div>
+    </div>
+  </div>
+</div>
 export default function StudentDashboard() {
   const [upcomingClasses, setUpcomingClasses] = useState([]);
   const [assignments, setAssignments] = useState([]);
