@@ -23,17 +23,17 @@ export default function Login() {
   const navigate = useNavigate();
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-  // Handle Login
-  const handleSignIn = async (e) => {
+const handleSignIn = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
       const res = await axios.post(`${API_BASE}/api/v1/auth/login`, { email, password });
+      
       const { token, role, userName, email: userEmail, user_id } = res.data;
 
-      // Save user session in localStorage
+      // Save session details
       localStorage.setItem('token', token);
       localStorage.setItem('role', role);
       localStorage.setItem('userName', userName || 'Student');

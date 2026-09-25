@@ -74,14 +74,14 @@ router.post('/login', async (req, res) => {
         );
 
         // 5. Send back success message, token, and user details
-       res.json({
-  message: 'Login successful!',
-  token,
-  role: user.role,
-  userName: user.full_name,
-  email: user.email,
-  user_id: user.user_id
-});
+   res.json({
+        message: 'Login successful!',
+        token,
+        role: user.role,
+        userName: user.full_name,
+        email: user.email,
+        user_id: user.user_id
+    });
     } catch (err) {
         console.error("Login Database Error:", err);
         res.status(500).json({ error: 'Database error occurred during login.', details: err.message });
