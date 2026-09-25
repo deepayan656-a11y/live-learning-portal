@@ -68,10 +68,10 @@ router.post('/login', async (req, res) => {
 
         // 4. Generate a JWT secure token containing the user's ID and Role
         const token = jwt.sign(
-            { user_id: user.user_id, role: user.role },
-            process.env.JWT_SECRET,
-            { expiresIn: '24h' }
-        );
+  { id: user.user_id, role: user.role },
+  process.env.JWT_SECRET,
+  { expiresIn: '7d' } // Token remains valid for 7 days
+);
 
         // 5. Send back success message, token, and user details
    res.json({
