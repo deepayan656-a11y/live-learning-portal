@@ -54,7 +54,7 @@ router.post('/', verifyToken, authorizeRoles('instructor', 'admin'), async (req,
 
 // ==========================================
 // 2. GET /api/v1/assignments
-// Retrieves assignments. Students only see assignments created AFTER their registration date.
+// Retrieves assignments. New students only see assignments created AFTER they registered.
 // ==========================================
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -62,32 +62,19 @@ router.get('/', verifyToken, async (req, res) => {
     let params = [];
 
     if (req.user.role === 'student') {
-      const studentId = req.user.user_id;
-
-      // 1. Look up student's account creation timestamp
-      const [userRows] = await db.query(
-        'SELECT created_at FROM users WHERE user_id = ?', 
-        [studentId]
-      );
-
-      if (userRows.length === 0) {
-        return res.json([]);
-      }
-
-      const userCreatedAt = userRows[0].created_at;
-
-      // 2. Fetch only assignments created AFTER this student registered
+      // Filter so new students only see assignments posted after their registration date
       query = `
         SELECT a.*, s.status AS submission_status, s.grade_score, s.submitted_at
         FROM assignments a
+        JOIN users u ON u.user_id = ?
         LEFT JOIN assignment_submissions s 
           ON a.assignment_id = s.assignment_id AND s.student_id = ?
-        WHERE a.created_at > ?
+        WHERE a.created_at >= u.created_at
         ORDER BY a.due_date ASC
       `;
-      params.push(studentId, userCreatedAt);
+      params.push(req.user.user_id, req.user.user_id);
     } else {
-      // Instructors and Admins view all assignments
+      // Instructors and Admins see all assignment definitions
       query = 'SELECT * FROM assignments ORDER BY due_date ASC';
     }
 
@@ -101,7 +88,7 @@ router.get('/', verifyToken, async (req, res) => {
 
 // ==========================================
 // 3. POST /api/v1/assignments/:id/submit
-// Route for Students to submit work (accepts multipart file or external link)
+// Route for Students to submit work (accepts multipart file or link)
 // ==========================================
 router.post('/:id/submit', verifyToken, authorizeRoles('student'), upload.single('file'), async (req, res) => {
   const assignment_id = req.params.id;
@@ -131,7 +118,7 @@ router.post('/:id/submit', verifyToken, authorizeRoles('student'), upload.single
       // Update existing submission details
       [result] = await db.query(
         'UPDATE assignment_submissions SET file_path = ?, external_link = ?, submission_notes = ?, status = "submitted", submitted_at = CURRENT_TIMESTAMP WHERE assignment_id = ? AND student_id = ?',
-        [file_path || existing[0].file_path, external_link || existing[0].external_link, submission_notes || existing[0].submission_notes, assignment_id, student_id]
+        [file_path || existing.file_path, external_link || existing.external_link, submission_notes || existing.submission_notes, assignment_id, student_id]
       );
     } else {
       // Register brand-new submission
@@ -143,7 +130,7 @@ router.post('/:id/submit', verifyToken, authorizeRoles('student'), upload.single
 
     res.status(201).json({
       message: 'Assignment submitted successfully!',
-      submissionId: existing.length > 0 ? existing[0].submission_id : result.insertId
+      submissionId: existing.length > 0 ? existing.submission_id : result.insertId
     });
   } catch (err) {
     console.error('Submission Error:', err);
@@ -210,7 +197,7 @@ router.put('/submissions/:id/grade', verifyToken, authorizeRoles('instructor', '
       return res.status(404).json({ error: 'Submission not found.' });
     }
 
-    const isPublic = is_public_to_peers !== undefined ? is_public_to_peers : submissions[0].is_public_to_peers;
+    const isPublic = is_public_to_peers !== undefined ? is_public_to_peers : submissions.is_public_to_peers;
 
     // Perform evaluation updates
     await db.query(
