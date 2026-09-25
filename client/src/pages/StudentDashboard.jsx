@@ -38,38 +38,24 @@ export default function StudentDashboard() {
   const [submitSuccess, setSubmitSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Gallery view state
-  const [showGalleryModal, setShowGalleryModal] = useState(false);
-
-  const navigate = useNavigate();
-
-  useEffect(() => {
+   useEffect(() => {
     const token = localStorage.getItem('token');
-    const name = localStorage.getItem('userName');
-    if (name) setUserName(name);
+    const storedName = localStorage.getItem('userName');
 
-    if (token) {
+    // If there is no session token at all, send back to login
+    if (!token) {
+      navigate('/');
+      return;
+    }
+
+    // Set name for header avatar
+    setUserName(storedName || 'Student');
+
+    // Fetch dashboard data safely
+    if (typeof fetchDashboardData === 'function') {
       fetchDashboardData(token);
     }
-  }, []);
-
-  const fetchDashboardData = async (token) => {
-    try {
-      const [scheduleRes, assignmentRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/v1/schedule/upcoming', {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get('http://localhost:5000/api/v1/assignments', {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ]);
-
-      setUpcomingClasses(scheduleRes.data || []);
-      setAssignments(assignmentRes.data || []);
-    } catch (err) {
-      console.error("Error loading student dashboard data:", err);
-    }
-  };
+  }, [navigate]);
 
   const handleOpenPeerGallery = async (assignment) => {
     const token = localStorage.getItem('token');

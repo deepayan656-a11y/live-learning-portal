@@ -23,29 +23,38 @@ export default function Login() {
   const navigate = useNavigate();
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-const handleSignIn = async (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
       const res = await axios.post(`${API_BASE}/api/v1/auth/login`, { email, password });
-      
-      const { token, role, userName, email: userEmail, user_id } = res.data;
 
-      // Save session details
+      // Fail-safe extraction (handles both flat and nested backend formats)
+      const token = res.data.token;
+      const userObj = res.data.user || res.data;
+
+      const role = userObj.role || res.data.role || 'student';
+      const userName = userObj.full_name || userObj.userName || res.data.userName || 'Student';
+      const userEmail = userObj.email || res.data.email || email;
+      const userId = userObj.id || userObj.user_id || res.data.user_id;
+
+      // Save valid values to localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('role', role);
-      localStorage.setItem('userName', userName || 'Student');
-      localStorage.setItem('userEmail', userEmail || email);
-      localStorage.setItem('userId', user_id);
+      localStorage.setItem('userName', userName);
+      localStorage.setItem('userEmail', userEmail);
+      localStorage.setItem('userId', userId);
 
-      if (role === 'student') {
-        navigate('/student');
-      } else {
+      // Navigate based on role
+      if (role === 'instructor') {
         navigate('/instructor');
+      } else {
+        navigate('/student');
       }
     } catch (err) {
+      console.error('Login Error:', err);
       setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
