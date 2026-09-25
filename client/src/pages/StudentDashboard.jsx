@@ -28,7 +28,7 @@ export default function StudentDashboard() {
 
   const navigate = useNavigate();
 
-  // Authentication Guard & Data Load
+  // Authentication Guard & Data Fetching
   useEffect(() => {
     const token = localStorage.getItem('token');
     const storedName = localStorage.getItem('userName');
@@ -117,7 +117,7 @@ export default function StudentDashboard() {
     }
   };
 
-  // Calculate Dynamic Zoom Session Buttons
+  // Calculate Dynamic Zoom Session Status
   const getSessionButtonStatus = (startTimeStr, durationMinutes) => {
     const now = new Date();
     const startTime = new Date(startTimeStr);
@@ -140,7 +140,7 @@ export default function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 flex flex-col">
-      {/* Navbar */}
+      {/* Top Navbar */}
       <nav className="bg-white/90 backdrop-blur-md shadow-sm border-b border-blue-100 px-6 py-4 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <img src={logo} alt="Portal Logo" className="h-10 w-auto object-contain" />
@@ -158,7 +158,7 @@ export default function StudentDashboard() {
         </button>
       </nav>
 
-      {/* Main Dashboard Layout */}
+      {/* Main Dashboard Workspace */}
       <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6 w-full flex-1">
         
         {/* Personal Student Profile Header */}
@@ -182,14 +182,17 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Scheduled Live Classes */}
+        {/* Scheduled Live Classes Section */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-100">
           <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
             <Video className="text-blue-600" size={22} /> Scheduled Live Classes
           </h2>
 
           {upcomingClasses.length === 0 ? (
-            <p className="text-sm text-gray-500 py-6 text-center">No live sessions scheduled at the moment.</p>
+            <div className="p-8 text-center bg-blue-50/30 rounded-xl border border-dashed border-blue-100">
+              <p className="text-sm font-semibold text-gray-600">No live sessions scheduled for your profile yet.</p>
+              <p className="text-xs text-gray-400 mt-1">New Zoom class links will appear here once scheduled by your instructor.</p>
+            </div>
           ) : (
             <div className="space-y-4">
               {upcomingClasses.map((session) => {
@@ -225,14 +228,17 @@ export default function StudentDashboard() {
           )}
         </div>
 
-        {/* Assignment Hub */}
+        {/* Assignment Hub Section */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-100">
           <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
             <BookOpen className="text-blue-600" size={22} /> Assignment Hub
           </h2>
 
           {assignments.length === 0 ? (
-            <p className="text-sm text-gray-500 py-6 text-center">No active assignments posted.</p>
+            <div className="p-8 text-center bg-blue-50/30 rounded-xl border border-dashed border-blue-100">
+              <p className="text-sm font-semibold text-gray-600">No active assignments assigned to your workspace yet.</p>
+              <p className="text-xs text-gray-400 mt-1">Upcoming homework prompts will be listed here after being assigned.</p>
+            </div>
           ) : (
             <div className="space-y-4">
               {assignments.map((assignment) => (
@@ -243,7 +249,7 @@ export default function StudentDashboard() {
                       <p className="text-xs text-gray-500 mt-0.5">{assignment.instructions}</p>
                     </div>
                     <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-100 text-amber-700 capitalize">
-                      {assignment.status || 'Pending'}
+                      {assignment.submission_status || 'Pending'}
                     </span>
                   </div>
 
