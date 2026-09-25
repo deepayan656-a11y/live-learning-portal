@@ -5,14 +5,14 @@ import { Video, BookOpen, Clock, LogOut, Send, X, ExternalLink, Users, Award } f
 
 import logo from '../assets/logo.png';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Dynamic API Base URL pointing to Render live backend
+const API_BASE = import.meta.env.VITE_API_URL || 'https://live-learning-portal.onrender.com';
 
 export default function StudentDashboard() {
-  // Main Data States
   const [upcomingClasses, setUpcomingClasses] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [userName, setUserName] = useState('');
-  
+
   // Gallery View States
   const [publicPeerSubmissions, setPublicPeerSubmissions] = useState([]);
   const [selectedAssignmentForGallery, setSelectedAssignmentForGallery] = useState(null);
@@ -28,7 +28,6 @@ export default function StudentDashboard() {
 
   const navigate = useNavigate();
 
-  // Authentication Guard & Data Load
   useEffect(() => {
     const token = localStorage.getItem('token');
     const storedName = localStorage.getItem('userName');
@@ -45,7 +44,10 @@ export default function StudentDashboard() {
 
   // Fetch Live Schedule and Assignment Hub Data
   const fetchDashboardData = async (token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
+    const config = {
+      headers: { Authorization: `Bearer ${token}` }
+    };
+
     try {
       const [scheduleRes, assignmentRes] = await Promise.all([
         axios.get(`${API_BASE}/api/v1/schedule/upcoming`, config),
@@ -139,7 +141,7 @@ export default function StudentDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 flex flex-col text-gray-900">
       {/* Navbar */}
       <nav className="bg-white/90 backdrop-blur-md shadow-sm border-b border-blue-100 px-6 py-4 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-3">
@@ -243,7 +245,7 @@ export default function StudentDashboard() {
                       <p className="text-xs text-gray-500 mt-0.5">{assignment.instructions}</p>
                     </div>
                     <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-100 text-amber-700 capitalize">
-                      {assignment.status || 'Pending'}
+                      {assignment.submission_status || assignment.status || 'Pending'}
                     </span>
                   </div>
 
