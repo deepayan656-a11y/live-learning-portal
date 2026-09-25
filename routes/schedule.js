@@ -4,9 +4,8 @@ const db = require('../db');
 const { verifyToken, authorizeRoles } = require('../authMiddleware');
 
 // ==========================================
-// 1. GET /api/v1/schedule/upcoming
-// Fetches scheduled classes and calculates dynamic session join / active status.
-// New students only see sessions scheduled AFTER their registration date.
+// GET /api/v1/schedule/upcoming
+// New students ONLY see classes created AFTER their account registration
 // ==========================================
 router.get('/upcoming', verifyToken, async (req, res) => {
   try {
@@ -14,17 +13,19 @@ router.get('/upcoming', verifyToken, async (req, res) => {
     let params = [];
 
     if (req.user.role === 'student') {
-      // Filter so newly registered students only see live classes scheduled after their account creation date
+      const studentId = req.user.user_id;
+
+      // Use UNIX_TIMESTAMP to eliminate timezone discrepancies (UTC vs Local)
       query = `
         SELECT ls.session_id, ls.title, ls.description, ls.zoom_meeting_id, ls.zoom_join_url, ls.zoom_passcode, ls.start_time, ls.duration_minutes
         FROM live_sessions ls
         JOIN users u ON u.user_id = ?
-        WHERE ls.start_time >= u.created_at
+        WHERE UNIX_TIMESTAMP(ls.created_at) > UNIX_TIMESTAMP(u.created_at)
         ORDER BY ls.start_time ASC
       `;
-      params.push(req.user.user_id);
+      params.push(studentId);
     } else {
-      // Instructors and Admins view all scheduled live sessions
+      // Instructors and Admins see all scheduled live sessions
       query = `
         SELECT session_id, title, description, zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes 
         FROM live_sessions 
@@ -39,7 +40,7 @@ router.get('/upcoming', verifyToken, async (req, res) => {
     // Process dynamic 10-minute activation window and status labels
     const processedSessions = sessions.map(session => {
       const startTime = new Date(session.start_time);
-      const endTime = new Date(startTime.getTime() + session.duration_minutes * 60 * 1000);
+      const endTime = new Date(startTime.getTime() + (session.duration_minutes || 60) * 60000);
       const activationWindowStart = new Date(startTime.getTime() - 10 * 60 * 1000);
 
       let buttonState = 'Starts Soon';
@@ -73,23 +74,24 @@ router.get('/upcoming', verifyToken, async (req, res) => {
 
   } catch (err) {
     console.error('Error fetching schedule:', err);
-    res.status(500).json({ error: 'Database error occurred while fetching schedule.', details: err.message });
+    res.status(500).json({ 
+      error: 'Database error occurred while fetching schedule.', 
+      details: err.message 
+    });
   }
 });
 
 // ==========================================
-// 2. POST /api/v1/schedule/create
-// Instructor / Admin endpoint to create and sync a new Zoom live session
+// POST /api/v1/schedule/create
+// Instructor / Admin endpoint to create new live sessions
 // ==========================================
 router.post('/create', verifyToken, authorizeRoles('instructor', 'admin'), async (req, res) => {
   let { title, description, zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes } = req.body;
 
-  // 1. Title and Start Time are required fields
   if (!title || !start_time) {
     return res.status(400).json({ error: 'Please provide title and start_time.' });
   }
 
-  // 2. Fallbacks for Zoom meeting details if omitted by frontend form
   if (!zoom_meeting_id) {
     zoom_meeting_id = Math.floor(1000000000 + Math.random() * 9000000000).toString();
   }
@@ -102,17 +104,20 @@ router.post('/create', verifyToken, authorizeRoles('instructor', 'admin'), async
 
   try {
     const [result] = await db.query(
-      'INSERT INTO live_sessions (title, description, zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes, instructor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO live_sessions (title, description, zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes, instructor_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())',
       [title, description || '', zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes || 60, req.user.user_id]
     );
 
     res.status(201).json({
-      message: 'Live session successfully scheduled and synchronized!',
+      message: 'Live session successfully scheduled!',
       sessionId: result.insertId
     });
   } catch (err) {
     console.error('Schedule Create Error:', err);
-    res.status(500).json({ error: 'Database error occurred while scheduling session.', details: err.message });
+    res.status(500).json({ 
+      error: 'Database error occurred while scheduling session.', 
+      details: err.message 
+    });
   }
 });
 
