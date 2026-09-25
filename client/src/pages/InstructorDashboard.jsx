@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Video, BookOpen, Clock, LogOut, Award, Plus, Calendar, FileText } from 'lucide-react';
+import { Video, BookOpen, Clock, LogOut, Award } from 'lucide-react';
 
-// 1. Single logo import
+// Single logo import
 import logo from '../assets/logo.png';
+
+// Dynamic API Base URL pointing to Render live backend
+const API_BASE = import.meta.env.VITE_API_URL || 'https://live-learning-portal.onrender.com';
 
 export default function InstructorDashboard() {
   const [submissions, setSubmissions] = useState([]);
@@ -48,14 +51,17 @@ export default function InstructorDashboard() {
 
     setUserName(name || 'Instructor');
     fetchDashboardData(token);
-  }, []);
+  }, [navigate]);
 
+  // Fetch Submissions & Attendance Logs
   const fetchDashboardData = async (token) => {
     try {
-      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const config = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
 
-      // Fetch all submissions for grading
-      const submissionRes = await axios.get('http://localhost:5000/api/v1/assignments/1/submissions', config);
+      // Fetch student submissions for grading
+      const submissionRes = await axios.get(`${API_BASE}/api/v1/assignments/1/submissions`, config);
       setSubmissions(submissionRes.data || []);
 
       // Simulating live attendance logs
@@ -67,7 +73,7 @@ export default function InstructorDashboard() {
     }
   };
 
-  // 1. Handle Creating a Live Zoom Session
+  // 1. Create Live Zoom Session
   const handleCreateSession = async (e) => {
     e.preventDefault();
     setClassError('');
@@ -75,7 +81,7 @@ export default function InstructorDashboard() {
     const token = localStorage.getItem('token');
 
     try {
-      await axios.post('http://localhost:5000/api/v1/schedule/create', {
+      await axios.post(`${API_BASE}/api/v1/schedule/create`, {
         title: classTitle,
         description: classDesc,
         start_time: classTime,
@@ -95,7 +101,7 @@ export default function InstructorDashboard() {
     }
   };
 
-  // 2. Handle Posting a New Assignment Prompt
+  // 2. Post New Homework Set Prompt
   const handleCreateAssignment = async (e) => {
     e.preventDefault();
     setAssignError('');
@@ -103,7 +109,7 @@ export default function InstructorDashboard() {
     const token = localStorage.getItem('token');
 
     try {
-      await axios.post('http://localhost:5000/api/v1/assignments', {
+      await axios.post(`${API_BASE}/api/v1/assignments`, {
         title: assignTitle,
         instructions: assignInstructions,
         due_date: assignDueDate,
@@ -112,7 +118,7 @@ export default function InstructorDashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setAssignSuccess('Assignment prompt successfully posted to Student Workspace!');
+      setAssignSuccess('Assignment prompt successfully posted!');
       setAssignTitle('');
       setAssignInstructions('');
       setAssignDueDate('');
@@ -123,13 +129,13 @@ export default function InstructorDashboard() {
     }
   };
 
-  // 3. Handle Submitting a Grade
+  // 3. Submit Student Grade
   const handleGradeSubmission = async (submissionId) => {
     setGradeError('');
     const token = localStorage.getItem('token');
 
     try {
-      await axios.put(`http://localhost:5000/api/v1/submissions/${submissionId}/grade`, {
+      await axios.put(`${API_BASE}/api/v1/assignments/submissions/${submissionId}/grade`, {
         grade_score: parseInt(gradeScore),
         instructor_feedback: gradeFeedback
       }, {
@@ -151,44 +157,47 @@ export default function InstructorDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
-      {/* Navbar with Logo */}
-      <nav className="bg-slate-950 border-b border-slate-800 px-6 py-4 flex justify-between items-center">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 text-gray-900 flex flex-col">
+      {/* NAVBAR */}
+      <nav className="bg-white/90 backdrop-blur-md shadow-sm border-b border-blue-100 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <img 
-            src={logo} 
-            alt="Portal Logo" 
-            className="h-10 w-auto object-contain bg-white/10 p-1 rounded-lg" 
-          />
+          <div className="bg-white p-1 rounded-xl shadow-sm border border-blue-100 flex items-center justify-center">
+            <img 
+              src={logo} 
+              alt="Portal Logo" 
+              className="h-10 w-auto object-contain" 
+            />
+          </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-wide">Instructor Console</h1>
-            <p className="text-xs text-gray-400">Logged in as: {userName}</p>
+            <h1 className="text-xl font-extrabold text-blue-900 tracking-wide">Instructor Console</h1>
+            <p className="text-xs text-blue-600 font-medium">Logged in as: {userName}</p>
           </div>
         </div>
 
         <button
           onClick={handleLogout}
-          className="flex items-center text-gray-300 hover:text-red-400 font-medium text-sm gap-2 transition"
+          className="flex items-center text-blue-700 hover:text-red-600 bg-blue-50 hover:bg-red-50 px-3.5 py-1.5 rounded-lg font-semibold text-sm gap-2 transition border border-blue-100"
         >
           <LogOut size={16} /> Logout
         </button>
       </nav>
 
-      {/* Main Workstation Grid */}
+      {/* MAIN CONTENT WORKSTATION GRID */}
       <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-        {/* Card 1: Create Live Zoom Session */}
-        <div className="bg-white text-gray-900 p-6 rounded-xl shadow-md border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Video className="text-indigo-600" size={22} /> Create Live Zoom Session
+        
+        {/* CARD 1: CREATE LIVE ZOOM SESSION */}
+        <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
+          <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
+            <Video className="text-blue-600" size={22} /> Create Live Zoom Session
           </h2>
 
           {classSuccess && (
-            <div className="mb-4 text-xs p-3 rounded-lg bg-green-50 text-green-700 border border-green-200">
+            <div className="mb-4 text-xs p-3 rounded-lg bg-green-50 text-green-700 border border-green-200 font-medium">
               {classSuccess}
             </div>
           )}
           {classError && (
-            <div className="mb-4 text-xs p-3 rounded-lg bg-red-50 text-red-600 border border-red-200">
+            <div className="mb-4 text-xs p-3 rounded-lg bg-red-50 text-red-600 border border-red-200 font-medium">
               {classError}
             </div>
           )}
@@ -199,7 +208,7 @@ export default function InstructorDashboard() {
               <input
                 type="text"
                 required
-                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
                 placeholder="e.g. Advancing React State Management"
                 value={classTitle}
                 onChange={(e) => setClassTitle(e.target.value)}
@@ -209,7 +218,7 @@ export default function InstructorDashboard() {
             <div>
               <label className="text-xs font-semibold text-gray-700">Description</label>
               <textarea
-                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
                 rows="3"
                 placeholder="Class notes..."
                 value={classDesc}
@@ -223,7 +232,7 @@ export default function InstructorDashboard() {
                 <input
                   type="datetime-local"
                   required
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
+                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
                   value={classTime}
                   onChange={(e) => setClassTime(e.target.value)}
                 />
@@ -233,7 +242,7 @@ export default function InstructorDashboard() {
                 <input
                   type="number"
                   required
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
+                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
                   value={classDuration}
                   onChange={(e) => setClassDuration(e.target.value)}
                 />
@@ -242,55 +251,55 @@ export default function InstructorDashboard() {
 
             <button
               type="submit"
-              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm transition"
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-sm shadow-sm transition"
             >
               Schedule & Sync to Zoom
             </button>
           </form>
         </div>
 
-        {/* Card 2: Homework Grading Workstation */}
-        <div className="bg-white text-gray-900 p-6 rounded-xl shadow-md border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Award className="text-indigo-600" size={22} /> Homework Grading Workstation
+        {/* CARD 2: HOMEWORK GRADING WORKSTATION */}
+        <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
+          <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
+            <Award className="text-blue-600" size={22} /> Homework Grading Workstation
           </h2>
 
           {submissions.length === 0 ? (
-            <p className="text-sm text-gray-500">No pending student submissions to evaluate.</p>
+            <p className="text-sm text-gray-500 py-6 text-center">No pending student submissions to evaluate.</p>
           ) : (
             <div className="space-y-4">
               {submissions.map((sub) => (
-                <div key={sub.submission_id || sub.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                <div key={sub.submission_id || sub.id} className="border border-blue-100 rounded-xl p-4 bg-blue-50/30 space-y-3">
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-bold text-gray-900">Student ID: {sub.student_id}</h3>
                       {sub.external_link && (
-                        <a href={sub.external_link} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline font-semibold">
-                          View Project Repository
+                        <a href={sub.external_link} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline font-semibold">
+                          View Project Repository ↗
                         </a>
                       )}
                       <p className="text-xs text-gray-500 italic mt-1">"{sub.submission_notes}"</p>
                     </div>
-                    <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-100 text-amber-700">
+                    <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-100 text-amber-700 capitalize">
                       {sub.status || 'Submitted'}
                     </span>
                   </div>
 
                   {activeGradingId === (sub.submission_id || sub.id) ? (
-                    <div className="space-y-3 pt-2 border-t border-gray-100">
+                    <div className="space-y-3 pt-2 border-t border-gray-200">
                       {gradeError && <p className="text-xs text-red-600">{gradeError}</p>}
                       <div className="grid grid-cols-2 gap-2">
                         <input
                           type="number"
                           placeholder="Score / 100"
-                          className="px-3 py-1.5 border border-gray-300 rounded text-xs"
+                          className="px-3 py-1.5 border border-gray-300 rounded text-xs bg-white text-gray-900"
                           value={gradeScore}
                           onChange={(e) => setGradeScore(e.target.value)}
                         />
                         <input
                           type="text"
                           placeholder="Feedback notes..."
-                          className="px-3 py-1.5 border border-gray-300 rounded text-xs"
+                          className="px-3 py-1.5 border border-gray-300 rounded text-xs bg-white text-gray-900"
                           value={gradeFeedback}
                           onChange={(e) => setGradeFeedback(e.target.value)}
                         />
@@ -298,25 +307,25 @@ export default function InstructorDashboard() {
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => setActiveGradingId(null)}
-                          className="px-3 py-1 text-xs text-gray-600 border border-gray-300 rounded"
+                          className="px-3 py-1 text-xs text-gray-600 border border-gray-300 rounded bg-white"
                         >
                           Cancel
                         </button>
                         <button
                           onClick={() => handleGradeSubmission(sub.submission_id || sub.id)}
-                          className="px-3 py-1 text-xs text-white bg-indigo-600 rounded font-semibold"
+                          className="px-3 py-1 text-xs text-white bg-blue-600 rounded font-semibold"
                         >
                           Submit Marks
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex justify-end pt-2 border-t border-gray-100">
+                    <div className="flex justify-end pt-2 border-t border-blue-100">
                       <button
                         onClick={() => setActiveGradingId(sub.submission_id || sub.id)}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold"
+                        className="text-xs text-blue-600 hover:text-blue-800 font-bold"
                       >
-                        Grade Assignment
+                        Grade Assignment →
                       </button>
                     </div>
                   )}
@@ -326,19 +335,19 @@ export default function InstructorDashboard() {
           )}
         </div>
 
-        {/* Card 3: Post New Homework Set */}
-        <div className="bg-white text-gray-900 p-6 rounded-xl shadow-md border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <BookOpen className="text-indigo-600" size={22} /> Post New Homework Set
+        {/* CARD 3: POST NEW HOMEWORK SET */}
+        <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
+          <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
+            <BookOpen className="text-blue-600" size={22} /> Post New Homework Set
           </h2>
 
           {assignSuccess && (
-            <div className="mb-4 text-xs p-3 rounded-lg bg-green-50 text-green-700 border border-green-200">
+            <div className="mb-4 text-xs p-3 rounded-lg bg-green-50 text-green-700 border border-green-200 font-medium">
               {assignSuccess}
             </div>
           )}
           {assignError && (
-            <div className="mb-4 text-xs p-3 rounded-lg bg-red-50 text-red-600 border border-red-200">
+            <div className="mb-4 text-xs p-3 rounded-lg bg-red-50 text-red-600 border border-red-200 font-medium">
               {assignError}
             </div>
           )}
@@ -349,7 +358,7 @@ export default function InstructorDashboard() {
               <input
                 type="text"
                 required
-                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
                 placeholder="e.g. Build a MySQL CRUD API"
                 value={assignTitle}
                 onChange={(e) => setAssignTitle(e.target.value)}
@@ -359,7 +368,7 @@ export default function InstructorDashboard() {
             <div>
               <label className="text-xs font-semibold text-gray-700">Instructions</label>
               <textarea
-                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
                 rows="3"
                 placeholder="Describe the homework details..."
                 value={assignInstructions}
@@ -373,7 +382,7 @@ export default function InstructorDashboard() {
                 <input
                   type="datetime-local"
                   required
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
+                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
                   value={assignDueDate}
                   onChange={(e) => setAssignDueDate(e.target.value)}
                 />
@@ -382,7 +391,7 @@ export default function InstructorDashboard() {
                 <label className="text-xs font-semibold text-gray-700">Max Score</label>
                 <input
                   type="number"
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
+                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
                   value={assignMaxScore}
                   onChange={(e) => setAssignMaxScore(e.target.value)}
                 />
@@ -391,42 +400,43 @@ export default function InstructorDashboard() {
 
             <button
               type="submit"
-              className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-lg text-sm transition"
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg text-sm shadow-sm transition"
             >
               Post Assignment Prompt
             </button>
           </form>
         </div>
 
-        {/* Card 4: Dynamic Live Session Attendance Logs */}
-        <div className="bg-white text-gray-900 p-6 rounded-xl shadow-md border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Clock className="text-indigo-600" size={22} /> Dynamic Live Session Attendance Logs
+        {/* CARD 4: ATTENDANCE LOGS */}
+        <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
+          <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
+            <Clock className="text-blue-600" size={22} /> Dynamic Live Session Attendance Logs
           </h2>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-700 font-semibold uppercase border-b border-slate-200">
+              <thead className="bg-blue-50 text-blue-900 font-bold uppercase border-b border-blue-100">
                 <tr>
-                  <th className="p-2">Student Name</th>
-                  <th className="p-2">Session Title</th>
-                  <th className="p-2">Calculated Time</th>
-                  <th className="p-2">Status</th>
+                  <th className="p-2.5">Student Name</th>
+                  <th className="p-2.5">Session Title</th>
+                  <th className="p-2.5">Calculated Time</th>
+                  <th className="p-2.5">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-gray-100">
                 {attendance.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50">
-                    <td className="p-2 font-medium">{log.name}</td>
-                    <td className="p-2 text-gray-600">{log.session}</td>
-                    <td className="p-2 text-indigo-600 font-semibold">{log.duration}</td>
-                    <td className="p-2 text-green-600 font-bold">{log.status}</td>
+                  <tr key={log.id} className="hover:bg-blue-50/40">
+                    <td className="p-2.5 font-bold text-gray-900">{log.name}</td>
+                    <td className="p-2.5 text-gray-600">{log.session}</td>
+                    <td className="p-2.5 text-blue-700 font-bold">{log.duration}</td>
+                    <td className="p-2.5 text-green-700 font-extrabold">{log.status}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
+
       </main>
     </div>
   );
