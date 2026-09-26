@@ -6,9 +6,12 @@ const fs = require('fs');
 const db = require('../db');
 const { verifyToken, authorizeRoles } = require('../authMiddleware');
 
-// 1. Configure storage location and file names for student uploads
+// Configure file upload storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    if (!fs.existsSync('uploads')) {
+      fs.mkdirSync('uploads');
+    }
     cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
@@ -16,30 +19,24 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
-// Create uploads folder dynamically if it doesn't exist
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
-}
-
-// ==========================================
-// 1. POST /api/v1/assignments
-// Instructor Endpoint: Posts a new assignment with explicit NOW() timestamp
-// ==========================================
+// 1. POST /api/v1/assignments (Instructor posts new homework)
 router.post('/', verifyToken, authorizeRoles('instructor', 'admin'), async (req, res) => {
-  const { title, instructions, due_date, max_score } = req.body;
+  let { title, instructions, due_date, max_score } = req.body;
   const instructor_id = req.user.user_id;
 
   if (!title || !instructions || !due_date) {
     return res.status(400).json({ error: 'Please provide title, instructions, and due_date.' });
   }
 
+  // Convert HTML datetime-local (YYYY-MM-DDTHH:MM) to MySQL DATETIME format
+  const formattedDueDate = due_date.replace('T', ' ');
+
   try {
-    // Explicitly set created_at = NOW() so new assignments always have a valid timestamp
     const [result] = await db.query(
-      'INSERT INTO assignments (title, instructions, due_date, max_score, instructor_id, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
-      [title, instructions, due_date, max_score || 100, instructor_id]
+      'INSERT INTO assignments (title, instructions, due_date, max_score, instructor_id) VALUES (?, ?, ?, ?, ?)',
+      [title, instructions, formattedDueDate, parseInt(max_score) || 100, instructor_id]
     );
 
     res.status(201).json({
@@ -52,32 +49,23 @@ router.post('/', verifyToken, authorizeRoles('instructor', 'admin'), async (req,
   }
 });
 
-// ==========================================
-// 2. GET /api/v1/assignments
-// Student View: Fetches assignments created AT or AFTER the student registered
-// ==========================================
+// 2. GET /api/v1/assignments (Fetches assignments for Student & Instructor profiles)
 router.get('/', verifyToken, async (req, res) => {
   try {
     let query;
     let params = [];
 
     if (req.user.role === 'student') {
-      const studentId = req.user.user_id;
-
-      // Uses UNIX_TIMESTAMP and >= comparison to solve timezone mismatches and missing timestamps
+      // Joins assignments with the individual student's submission history
       query = `
         SELECT a.*, s.status AS submission_status, s.grade_score, s.submitted_at
         FROM assignments a
-        JOIN users u ON u.user_id = ?
         LEFT JOIN assignment_submissions s 
-          ON a.assignment_id = s.assignment_id AND s.student_id = ?
-        WHERE a.created_at IS NOT NULL 
-          AND UNIX_TIMESTAMP(a.created_at) >= UNIX_TIMESTAMP(u.created_at)
+        ON a.assignment_id = s.assignment_id AND s.student_id = ?
         ORDER BY a.due_date ASC
       `;
-      params.push(studentId, studentId);
+      params.push(req.user.user_id);
     } else {
-      // Instructors and Admins view all assignments
       query = 'SELECT * FROM assignments ORDER BY due_date ASC';
     }
 
@@ -89,10 +77,7 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-// ==========================================
-// 3. POST /api/v1/assignments/:id/submit
-// Student Route: Submit assignment (file upload or repository link)
-// ==========================================
+// 3. POST /api/v1/assignments/:id/submit (Student submits assignment)
 router.post('/:id/submit', verifyToken, authorizeRoles('student'), upload.single('file'), async (req, res) => {
   const assignment_id = req.params.id;
   const student_id = req.user.user_id;
@@ -100,15 +85,10 @@ router.post('/:id/submit', verifyToken, authorizeRoles('student'), upload.single
   const file_path = req.file ? req.file.path : null;
 
   if (!file_path && !external_link) {
-    return res.status(400).json({ error: 'Please upload a homework file or provide an external link.' });
+    return res.status(400).json({ error: 'Please upload a file or provide a project repository link.' });
   }
 
   try {
-    const [assignments] = await db.query('SELECT * FROM assignments WHERE assignment_id = ?', [assignment_id]);
-    if (assignments.length === 0) {
-      return res.status(404).json({ error: 'Assignment not found.' });
-    }
-
     const [existing] = await db.query(
       'SELECT * FROM assignment_submissions WHERE assignment_id = ? AND student_id = ?',
       [assignment_id, student_id]
@@ -122,7 +102,7 @@ router.post('/:id/submit', verifyToken, authorizeRoles('student'), upload.single
       );
     } else {
       [result] = await db.query(
-        'INSERT INTO assignments_submissions (assignment_id, student_id, file_path, external_link, submission_notes) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO assignment_submissions (assignment_id, student_id, file_path, external_link, submission_notes) VALUES (?, ?, ?, ?, ?)',
         [assignment_id, student_id, file_path, external_link, submission_notes]
       );
     }
@@ -137,9 +117,7 @@ router.post('/:id/submit', verifyToken, authorizeRoles('student'), upload.single
   }
 });
 
-// ==========================================
-// 4. GET /api/v1/assignments/:id/submissions
-// ==========================================
+// 4. GET /api/v1/assignments/:id/submissions (Submissions for grading and peer gallery)
 router.get('/:id/submissions', verifyToken, async (req, res) => {
   const assignment_id = req.params.id;
   const user_id = req.user.user_id;
@@ -171,40 +149,6 @@ router.get('/:id/submissions', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('Fetch Submissions Error:', err);
     res.status(500).json({ error: 'Database error occurred while fetching submissions.', details: err.message });
-  }
-});
-
-// ==========================================
-// 5. PUT /api/v1/assignments/submissions/:id/grade
-// ==========================================
-router.put('/submissions/:id/grade', verifyToken, authorizeRoles('instructor', 'admin'), async (req, res) => {
-  const submission_id = req.params.id;
-  const { grade_score, instructor_feedback, is_public_to_peers } = req.body;
-
-  if (grade_score === undefined) {
-    return res.status(400).json({ error: 'Please provide a grade_score.' });
-  }
-
-  try {
-    const [submissions] = await db.query('SELECT * FROM assignment_submissions WHERE submission_id = ?', [submission_id]);
-    if (submissions.length === 0) {
-      return res.status(404).json({ error: 'Submission not found.' });
-    }
-
-    const isPublic = is_public_to_peers !== undefined ? is_public_to_peers : submissions.is_public_to_peers;
-
-    await db.query(
-      'UPDATE assignment_submissions SET grade_score = ?, instructor_feedback = ?, is_public_to_peers = ?, status = "graded" WHERE submission_id = ?',
-      [grade_score, instructor_feedback || null, isPublic, submission_id]
-    );
-
-    res.json({
-      message: 'Submission successfully graded and updated!',
-      submissionId: submission_id
-    });
-  } catch (err) {
-    console.error('Grading Error:', err);
-    res.status(500).json({ error: 'Database error occurred while grading.', details: err.message });
   }
 });
 
