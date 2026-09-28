@@ -52,11 +52,12 @@ router.post('/', verifyToken, authorizeRoles('instructor', 'admin'), async (req,
 // 2. GET /api/v1/assignments (Fetches assignments for Student & Instructor profiles)
 router.get('/', verifyToken, async (req, res) => {
   try {
-    let query;
+    const { user_id, role } = req.user;
+    let query = '';
     let params = [];
 
-    if (req.user.role === 'student') {
-      // Joins assignments with the individual student's submission history
+    if (role === 'student') {
+      // Student view with personal submission status
       query = `
         SELECT a.*, s.status AS submission_status, s.grade_score, s.submitted_at
         FROM assignments a
@@ -64,9 +65,14 @@ router.get('/', verifyToken, async (req, res) => {
         ON a.assignment_id = s.assignment_id AND s.student_id = ?
         ORDER BY a.due_date ASC
       `;
-      params.push(req.user.user_id);
-    } else {
+      params.push(user_id);
+    } else if (role === 'super_admin') {
+      // Super Admin sees all assignments across all subjects
       query = 'SELECT * FROM assignments ORDER BY due_date ASC';
+    } else {
+      // Mentor (instructor/admin) sees ONLY assignments created by them
+      query = 'SELECT * FROM assignments WHERE instructor_id = ? ORDER BY due_date ASC';
+      params.push(user_id);
     }
 
     const [rows] = await db.query(query, params);

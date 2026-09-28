@@ -7,9 +7,23 @@ const { verifyToken, authorizeRoles } = require('../authMiddleware');
 // Fetches all scheduled classes and dynamically calculates session status
 router.get('/upcoming', verifyToken, async (req, res) => {
   try {
-    const [sessions] = await db.query(
-      'SELECT session_id, title, description, zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes FROM live_sessions ORDER BY start_time ASC'
-    );
+    const { user_id, role } = req.user;
+    let query = '';
+    let params = [];
+
+    if (role === 'super_admin') {
+      // Super Admin sees ALL sessions across all subjects
+      query = 'SELECT * FROM live_sessions ORDER BY start_time ASC';
+    } else if (role === 'instructor' || role === 'admin') {
+      // Mentor sees ONLY sessions created by them
+      query = 'SELECT * FROM live_sessions WHERE instructor_id = ? ORDER BY start_time ASC';
+      params.push(user_id);
+    } else {
+      // Students see all upcoming sessions
+      query = 'SELECT * FROM live_sessions WHERE start_time >= NOW() ORDER BY start_time ASC';
+    }
+
+    const [sessions] = await db.query(query, params);
 
     const currentTime = new Date();
 

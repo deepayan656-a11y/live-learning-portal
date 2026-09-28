@@ -38,20 +38,21 @@ export default function InstructorDashboard() {
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const role = localStorage.getItem('role');
-    const name = localStorage.getItem('userName');
+ useEffect(() => {
+  const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
+  const name = localStorage.getItem('userName');
 
-    if (!token || (role !== 'instructor' && role !== 'super_admin')) {
-      localStorage.clear();
-      navigate('/');
-      return;
-    }
+  // Allow instructor, admin, and super_admin roles
+  if (!token || (role !== 'instructor' && role !== 'admin' && role !== 'super_admin')) {
+    localStorage.clear();
+    navigate('/');
+    return;
+  }
 
-    setUserName(name || 'Instructor');
-    fetchDashboardData(token);
-  }, [navigate]);
+  setUserName(name || 'Instructor / Admin');
+  fetchDashboardData(token);
+}, [navigate]);
 
   // Fetch Submissions & Attendance Logs
   const fetchDashboardData = async (token) => {
