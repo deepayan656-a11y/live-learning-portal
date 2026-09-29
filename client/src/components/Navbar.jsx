@@ -21,11 +21,11 @@ export default function Navbar({ title }) {
       {/* Left: Logo Container & Title */}
       <div className="relative z-10 flex items-center gap-3">
         <div className="bg-white p-1.5 rounded-xl shadow-md border border-white/40 flex items-center justify-center">
-          <img 
-            src={logo} 
-            alt="AvaIntern Logo" 
-            className="h-10 w-auto object-contain" 
-          />
+         <img 
+  src="/logo.png" 
+  alt="Company Logo" 
+  className="h-10 w-auto object-contain" 
+/>
         </div>
         <div>
           <h1 className="text-xl font-extrabold text-white tracking-wide drop-shadow-sm">
