@@ -76,6 +76,7 @@ router.get('/upcoming', verifyToken, async (req, res) => {
 });
 
 // POST /api/v1/schedule/create
+// POST /api/v1/schedule/create
 router.post('/create', verifyToken, authorizeRoles('instructor', 'admin'), async (req, res) => {
   let { title, description, course_name, zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes } = req.body;
 
@@ -83,31 +84,36 @@ router.post('/create', verifyToken, authorizeRoles('instructor', 'admin'), async
     return res.status(400).json({ error: 'Please provide title and start_time.' });
   }
 
-  // 1. Format start_time safely for MySQL DATETIME (YYYY-MM-DD HH:MM:00)
+  // Format start_time for MySQL DATETIME
   let formattedStartTime = start_time.replace('T', ' ');
   if (formattedStartTime.length === 16) {
     formattedStartTime += ':00';
   }
 
-  // 2. Extract valid instructor_id from JWT payload
   const instructorId = req.user.user_id || req.user.id;
-  if (!instructorId) {
-    return res.status(400).json({ error: 'Invalid instructor session. Please log out and log in again.' });
-  }
-
   const targetCourse = course_name || 'FULL STACK';
 
-  // 3. Defaults for Zoom credentials
   if (!zoom_meeting_id) zoom_meeting_id = Math.floor(1000000000 + Math.random() * 9000000000).toString();
   if (!zoom_join_url) zoom_join_url = `https://zoom.us/j/${zoom_meeting_id}`;
   if (!zoom_passcode) zoom_passcode = 'learn123';
 
   try {
+    // 🎯 EXACT MATCH: 9 explicit columns and 9 placeholders (?)
     const [result] = await db.query(
       `INSERT INTO live_sessions 
        (title, description, course_name, zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes, instructor_id) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [title, description || '', targetCourse, zoom_meeting_id, zoom_join_url, zoom_passcode, formattedStartTime, parseInt(duration_minutes) || 60, instructorId]
+      [
+        title,                           // 1
+        description || '',               // 2
+        targetCourse,                    // 3
+        zoom_meeting_id,                 // 4
+        zoom_join_url,                   // 5
+        zoom_passcode,                   // 6
+        formattedStartTime,              // 7
+        parseInt(duration_minutes) || 60,// 8
+        instructorId                     // 9
+      ]
     );
 
     res.status(201).json({
@@ -115,9 +121,10 @@ router.post('/create', verifyToken, authorizeRoles('instructor', 'admin'), async
       sessionId: result.insertId
     });
   } catch (err) {
-    console.error('SQL Error while scheduling:', err.sqlMessage || err.message);
+    console.error('SQL Error:', err.sqlMessage || err.message);
     res.status(500).json({ 
-      error: err.sqlMessage || err.message || 'Database error occurred while scheduling session.' 
+      error: 'Database error occurred while scheduling session.',
+      details: err.sqlMessage || err.message 
     });
   }
 });
