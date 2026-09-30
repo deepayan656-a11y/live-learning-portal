@@ -68,7 +68,8 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email or password.' });
     }
 
-    const user = rows;
+    // Extract the single user object from the rows array
+    const user = rows[0];
 
     // Check account status if is_active column exists
     if (user.is_active !== undefined && user.is_active === 0) {
