@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Video, BookOpen, Clock, LogOut, Award, Download, FileSpreadsheet } from 'lucide-react';
+import { Video, BookOpen, Clock, LogOut, Award, Download, FileSpreadsheet, Users, UserX, UserCheck } from 'lucide-react';
 import logo from '../assets/logo.png';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://live-learning-portal.onrender.com';
 
-// Course List extracted directly from names.jpeg
+// Official course domain list from names.jpeg
 const courseList = [
   "FULL STACK",
   "Artificial Intelligence",
@@ -53,9 +53,10 @@ const courseList = [
 export default function InstructorDashboard() {
   const [submissions, setSubmissions] = useState([]);
   const [attendance, setAttendance] = useState([]);
+  const [usersList, setUsersList] = useState([]);
   const [userName, setUserName] = useState('');
 
-  // New Class Form State
+  // Live Zoom Session Form State
   const [classTitle, setClassTitle] = useState('');
   const [targetCourse, setTargetCourse] = useState(courseList);
   const [classDesc, setClassDesc] = useState('');
@@ -64,7 +65,7 @@ export default function InstructorDashboard() {
   const [classError, setClassError] = useState('');
   const [classSuccess, setClassSuccess] = useState('');
 
-  // New Assignment Form State
+  // Homework Form State
   const [assignTitle, setAssignTitle] = useState('');
   const [assignInstructions, setAssignInstructions] = useState('');
   const [assignDueDate, setAssignDueDate] = useState('');
@@ -72,7 +73,7 @@ export default function InstructorDashboard() {
   const [assignError, setAssignError] = useState('');
   const [assignSuccess, setAssignSuccess] = useState('');
 
-  // Grading State
+  // Homework Grading State
   const [activeGradingId, setActiveGradingId] = useState(null);
   const [gradeScore, setGradeScore] = useState('');
   const [gradeFeedback, setGradeFeedback] = useState('');
@@ -91,17 +92,18 @@ export default function InstructorDashboard() {
       return;
     }
 
-    setUserName(name || 'Instructor / Admin');
+    setUserName(name || 'Instructor / Mentor');
     fetchDashboardData(token);
+    fetchUsers(token);
   }, [navigate]);
 
+  // Fetch Homework Submissions & Attendance Logs
   const fetchDashboardData = async (token) => {
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const submissionRes = await axios.get(`${API_BASE}/api/v1/assignments/1/submissions`, config);
       setSubmissions(submissionRes.data || []);
 
-      // Live attendance logs
       setAttendance([
         { id: 1, name: 'Jane Student', email: 'student@portal.com', session: 'Intro to Node.js & MySQL', duration: '45 mins', status: 'Present' }
       ]);
@@ -110,11 +112,35 @@ export default function InstructorDashboard() {
     }
   };
 
+  // Fetch Registered Users Directory
+  const fetchUsers = async (token) => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.get(`${API_BASE}/api/v1/admin/users`, config);
+      setUsersList(res.data || []);
+    } catch (err) {
+      console.error("Error fetching user list:", err);
+    }
+  };
+
+  // Toggle User Revoke / Restore Access
+  const handleToggleAccess = async (userId) => {
+    const token = localStorage.getItem('token');
+    try {
+      await axios.put(`${API_BASE}/api/v1/admin/users/${userId}/toggle-access`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchUsers(token);
+    } catch (err) {
+      alert("Failed to change user status.");
+    }
+  };
+
   // ==========================================
-  // 1-CLICK EXPORT FUNCTIONS FOR GOOGLE SHEETS / EXCEL
+  // 1-CLICK CSV EXPORT HELPERS
   // ==========================================
 
-  // Export Attendance Logs to CSV
+  // Export Attendance Logs
   const handleExportAttendanceCSV = () => {
     if (!attendance || attendance.length === 0) {
       alert("No attendance data available to export.");
@@ -142,14 +168,14 @@ export default function InstructorDashboard() {
     document.body.removeChild(link);
   };
 
-  // Export Assignment Submissions to CSV
+  // Export Assignment Submissions
   const handleExportSubmissionsCSV = () => {
     if (!submissions || submissions.length === 0) {
       alert("No submission records available to export.");
       return;
     }
 
-    const headers = ["Submission ID", "Student ID", "Project Repository Link", "Submission Notes", "Status", "Grade Score", "Instructor Feedback"];
+    const headers = ["Submission ID", "Student ID", "Project Repository Link", "Submission Notes", "Status", "Grade Score", "Feedback"];
     const rows = submissions.map(sub => [
       sub.submission_id || sub.id || '',
       sub.student_id || '',
@@ -165,13 +191,41 @@ export default function InstructorDashboard() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Student_Submissions_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `Student_Submissions_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Create Live Zoom Session with Selected Course
+  // Export Registered Users Directory
+  const handleExportUsersCSV = () => {
+    if (!usersList || usersList.length === 0) {
+      alert("No user records available to export.");
+      return;
+    }
+
+    const headers = ["User ID", "Full Name", "Email", "Role", "Enrolled Course", "Account Status"];
+    const rows = usersList.map(u => [
+      u.user_id || u.id || '',
+      `"${(u.full_name || '').replace(/"/g, '""')}"`,
+      u.email || '',
+      u.role || 'student',
+      `"${(u.course_name || 'FULL STACK').replace(/"/g, '""')}"`,
+      u.is_active === 0 ? 'Revoked' : 'Active'
+    ]);
+
+    const csvContent = ["\ufeff" + headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Portal_Users_Directory_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Schedule Live Zoom Class
   const handleCreateSession = async (e) => {
     e.preventDefault();
     setClassError('');
@@ -181,7 +235,7 @@ export default function InstructorDashboard() {
     try {
       await axios.post(`${API_BASE}/api/v1/schedule/create`, {
         title: classTitle,
-        course_name: targetCourse, // Direct course mapping
+        course_name: targetCourse,
         description: classDesc,
         start_time: classTime,
         duration_minutes: parseInt(classDuration)
@@ -189,7 +243,7 @@ export default function InstructorDashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setClassSuccess(`Live Zoom session scheduled for ${targetCourse}!`);
+      setClassSuccess(`Live Zoom class scheduled for ${targetCourse}!`);
       setClassTitle('');
       setClassDesc('');
       setClassTime('');
@@ -228,7 +282,7 @@ export default function InstructorDashboard() {
     }
   };
 
-  // Submit Grade
+  // Grade Homework Submission
   const handleGradeSubmission = async (submissionId) => {
     setGradeError('');
     const token = localStorage.getItem('token');
@@ -264,18 +318,17 @@ export default function InstructorDashboard() {
             <img src={logo} alt="Portal Logo" className="h-10 w-auto object-contain" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-blue-900 tracking-wide">Instructor Console</h1>
+            <h1 className="text-xl font-extrabold text-blue-900 tracking-wide">Instructor Workstation</h1>
             <p className="text-xs text-blue-600 font-medium">Logged in as: {userName}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* 1-CLICK CSV EXPORT BUTTON */}
           <button
-            onClick={handleExportAttendanceCSV}
+            onClick={handleExportUsersCSV}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-sm transition"
           >
-            <FileSpreadsheet size={15} /> Export Attendance (.CSV)
+            <FileSpreadsheet size={15} /> Export Directory (.CSV)
           </button>
 
           <button
@@ -287,13 +340,13 @@ export default function InstructorDashboard() {
         </div>
       </nav>
 
-      {/* MAIN CONTENT GRID */}
+      {/* MAIN WORKSTATION GRID */}
       <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
 
-        {/* CARD 1: CREATE LIVE ZOOM SESSION WITH COURSE DROPDOWN */}
-        <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
+        {/* CARD 1: SCHEDULE LIVE ZOOM SESSION WITH COURSE DROPDOWN */}
+        <div className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-md border border-blue-100">
           <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
-            <Video className="text-blue-600" size={22} /> Create Live Zoom Session
+            <Video className="text-blue-600" size={22} /> Schedule Live Zoom Session
           </h2>
 
           {classSuccess && (
@@ -309,7 +362,7 @@ export default function InstructorDashboard() {
 
           <form onSubmit={handleCreateSession} className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-gray-700">Session Title</label>
+              <label className="text-xs font-semibold text-gray-700">Class Title</label>
               <input
                 type="text"
                 required
@@ -322,7 +375,7 @@ export default function InstructorDashboard() {
 
             {/* Target Course Dropdown */}
             <div>
-              <label className="text-xs font-semibold text-gray-700">Target Course / Domain</label>
+              <label className="text-xs font-semibold text-gray-700">Select Target Course / Domain</label>
               <select
                 value={targetCourse}
                 onChange={(e) => setTargetCourse(e.target.value)}
@@ -337,11 +390,11 @@ export default function InstructorDashboard() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-gray-700">Description</label>
+              <label className="text-xs font-semibold text-gray-700">Description / Agenda</label>
               <textarea
                 className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900"
-                rows="3"
-                placeholder="Class notes..."
+                rows="2"
+                placeholder="Session details..."
                 value={classDesc}
                 onChange={(e) => setClassDesc(e.target.value)}
               />
@@ -359,7 +412,7 @@ export default function InstructorDashboard() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-700">Duration (Mins)</label>
+                <label className="text-xs font-semibold text-gray-700">Duration (Minutes)</label>
                 <input
                   type="number"
                   required
@@ -374,13 +427,13 @@ export default function InstructorDashboard() {
               type="submit"
               className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-sm shadow-sm transition"
             >
-              Schedule & Sync to Zoom
+              Schedule & Sync Class
             </button>
           </form>
         </div>
 
-        {/* CARD 2: GRADING WORKSTATION */}
-        <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
+        {/* CARD 2: HOMEWORK GRADING WORKSTATION */}
+        <div className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-md border border-blue-100">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-blue-950 flex items-center gap-2">
               <Award className="text-blue-600" size={22} /> Homework Grading Workstation
@@ -464,8 +517,8 @@ export default function InstructorDashboard() {
           )}
         </div>
 
-        {/* CARD 3: POST NEW ASSIGNMENT */}
-        <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
+        {/* CARD 3: POST NEW HOMEWORK SET */}
+        <div className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-md border border-blue-100">
           <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
             <BookOpen className="text-blue-600" size={22} /> Post New Homework Set
           </h2>
@@ -537,10 +590,10 @@ export default function InstructorDashboard() {
         </div>
 
         {/* CARD 4: ATTENDANCE LOGS WITH CSV EXPORT */}
-        <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
+        <div className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-md border border-blue-100">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-blue-950 flex items-center gap-2">
-              <Clock className="text-blue-600" size={22} /> Dynamic Attendance Logs
+              <Clock className="text-blue-600" size={22} /> Live Class Attendance
             </h2>
             <button
               onClick={handleExportAttendanceCSV}
@@ -572,6 +625,82 @@ export default function InstructorDashboard() {
                     <td className="p-2.5 text-green-700 font-extrabold">{log.status}</td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* CARD 5: MANAGE USERS DIRECTORY WITH REVOKE / RESTORE ACCESS */}
+        <div className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-md border border-blue-100 col-span-1 lg:col-span-2">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-blue-950 flex items-center gap-2">
+                <Users className="text-blue-600" size={22} /> Manage Registered Users Directory ({usersList.length})
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5">View and control account access for students and mentors</p>
+            </div>
+            <button
+              onClick={handleExportUsersCSV}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-sm transition flex items-center gap-1.5"
+            >
+              📊 Export Directory (.CSV)
+            </button>
+          </div>
+
+          <div className="overflow-x-auto border border-blue-100 rounded-xl">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-blue-50 text-blue-900 font-bold uppercase border-b border-blue-100">
+                <tr>
+                  <th className="p-3">User ID</th>
+                  <th className="p-3">Full Name</th>
+                  <th className="p-3">Email Address</th>
+                  <th className="p-3">Role</th>
+                  <th className="p-3">Enrolled Course</th>
+                  <th className="p-3">Account Status</th>
+                  <th className="p-3 text-right">Access Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {usersList.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="p-6 text-center text-gray-400 font-medium">
+                      No user records found in the portal directory.
+                    </td>
+                  </tr>
+                ) : (
+                  usersList.map((u) => (
+                    <tr key={u.user_id || u.id} className="hover:bg-blue-50/30 transition">
+                      <td className="p-3 font-mono font-bold text-gray-700">{u.user_id || u.id}</td>
+                      <td className="p-3 font-bold text-gray-900">{u.full_name}</td>
+                      <td className="p-3 text-gray-600">{u.email}</td>
+                      <td className="p-3 capitalize font-semibold text-slate-700">{u.role}</td>
+                      <td className="p-3 text-blue-700 font-medium">{u.course_name || 'FULL STACK'}</td>
+                      <td className="p-3">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
+                          u.is_active === 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                        }`}>
+                          {u.is_active === 0 ? 'Revoked' : 'Active'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <button
+                          onClick={() => handleToggleAccess(u.user_id || u.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ml-auto shadow-sm ${
+                            u.is_active === 0
+                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                              : 'bg-red-600 hover:bg-red-700 text-white'
+                          }`}
+                        >
+                          {u.is_active === 0 ? (
+                            <> <UserCheck size={14} /> Restore Access </>
+                          ) : (
+                            <> <UserX size={14} /> Revoke Access </>
+                          )}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

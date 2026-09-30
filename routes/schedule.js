@@ -13,24 +13,30 @@ router.get('/upcoming', verifyToken, async (req, res) => {
     let query = '';
     let params = [];
 
-    if (role === 'super_admin') {
-      // Super Admin sees ALL sessions across all courses
-      query = 'SELECT * FROM live_sessions ORDER BY start_time ASC';
-    } else if (role === 'instructor' || role === 'admin') {
-      // Mentor sees sessions created by them or for all courses
-      query = 'SELECT * FROM live_sessions WHERE instructor_id = ? ORDER BY start_time ASC';
-      params.push(user_id);
+    if (role === 'instructor' || role === 'admin') {
+      // Fetch all sessions with mentor name joined from users table
+      query = `
+        SELECT ls.*, u.full_name AS mentor_name 
+        FROM live_sessions ls 
+        LEFT JOIN users u ON ls.instructor_id = u.user_id 
+        ORDER BY ls.start_time ASC
+      `;
     } else {
-      // 🎯 STUDENTS: See ONLY upcoming classes assigned to their specific enrolled course
+      // Fetch course-isolated sessions with mentor name for students
       const studentCourse = course_name || 'FULL STACK';
-      query = 'SELECT * FROM live_sessions WHERE course_name = ? AND start_time >= NOW() - INTERVAL 2 HOUR ORDER BY start_time ASC';
+      query = `
+        SELECT ls.*, u.full_name AS mentor_name 
+        FROM live_sessions ls 
+        LEFT JOIN users u ON ls.instructor_id = u.user_id 
+        WHERE ls.course_name = ? AND ls.start_time >= NOW() - INTERVAL 2 HOUR 
+        ORDER BY ls.start_time ASC
+      `;
       params.push(studentCourse);
     }
 
     const [sessions] = await db.query(query, params);
     const currentTime = new Date();
 
-    // Process dynamic button state (10-minute activation window)
     const processedSessions = sessions.map(session => {
       const startTime = new Date(session.start_time);
       const endTime = new Date(startTime.getTime() + (session.duration_minutes || 60) * 60 * 1000);
@@ -41,35 +47,33 @@ router.get('/upcoming', verifyToken, async (req, res) => {
 
       if (currentTime < activationWindowStart) {
         buttonState = 'Starts Soon';
-        canJoin = false;
       } else if (currentTime >= activationWindowStart && currentTime <= endTime) {
         buttonState = 'Join Class Now';
         canJoin = true;
       } else {
         buttonState = 'Session Ended';
-        canJoin = false;
       }
 
       return {
         session_id: session.session_id,
         title: session.title,
         description: session.description,
-        course_name: session.course_name || 'FULL STACK',
+        course_name: session.course_name,
+        mentor_name: session.mentor_name || 'Assigned Mentor', // 👈 Includes Mentor Name
         start_time: session.start_time,
         duration_minutes: session.duration_minutes,
         buttonState,
         canJoin,
-        zoom_join_url: session.zoom_join_url,
-        zoom_passcode: session.zoom_passcode
+        zoom_join_url: session.zoom_join_url
       };
     });
 
     res.json(processedSessions);
   } catch (err) {
-    console.error('Error fetching schedule:', err);
-    res.status(500).json({ error: 'Database error occurred while fetching schedule.', details: err.message });
+    res.status(500).json({ error: 'Database error occurred while fetching schedule.' });
   }
 });
+
 
 // ==========================================
 // 2. POST /api/v1/schedule/create
