@@ -22,9 +22,9 @@ export default function Navbar({ title }) {
       <div className="relative z-10 flex items-center gap-3">
         <div className="bg-white p-1.5 rounded-xl shadow-md border border-white/40 flex items-center justify-center">
          <img 
-  src="/logo.png" 
+  src="/logo1.jpeg" 
   alt="Company Logo" 
-  className="h-10 w-auto object-contain" 
+  className="h-10 w-auto object-contain"  
 />
         </div>
         <div>
