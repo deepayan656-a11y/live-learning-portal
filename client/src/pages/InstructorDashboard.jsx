@@ -6,6 +6,50 @@ import logo from '../assets/logo.png';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://live-learning-portal.onrender.com';
 
+// Course List extracted directly from names.jpeg
+const courseList = [
+  "FULL STACK",
+  "Artificial Intelligence",
+  "DATA SCIENCE",
+  "DATA ANALYTICS",
+  "CYBER SECURITY",
+  "BUSINESS ANALYTICS",
+  "CLOUD COMPUTING",
+  "DSA",
+  "UI/UX",
+  "Machine Learning",
+  "DIGITAL MARKETING",
+  "EMBEDDED SYSTEMS",
+  "GEN AI",
+  "VLSI",
+  "POWER BI",
+  "AUTO CAD",
+  "DEEP LEARNING",
+  "NLP",
+  "PSYCHOLOGY",
+  "CATIA",
+  "DRONE TECHNOLOGY",
+  "SOFTWARE TESTING",
+  "NETWORKING",
+  "SYSTEM ADMINISTRATION",
+  "CYBER SECURITY ADVANCE",
+  "BIM",
+  "REVIT",
+  "STAD PRO",
+  "PCB",
+  "ROBOTICS",
+  "COMPUTER VISION",
+  "SOFTWARE DEVELOPMENT",
+  "DEVOPS",
+  "DBMS",
+  "BLOCK CHAIN",
+  "SOLID WORKS",
+  "MEDICAL CODING",
+  "SALES & MARKETING",
+  "FINANCE",
+  "HR MANAGEMENT"
+];
+
 export default function InstructorDashboard() {
   const [submissions, setSubmissions] = useState([]);
   const [attendance, setAttendance] = useState([]);
@@ -13,6 +57,7 @@ export default function InstructorDashboard() {
 
   // New Class Form State
   const [classTitle, setClassTitle] = useState('');
+  const [targetCourse, setTargetCourse] = useState(courseList);
   const [classDesc, setClassDesc] = useState('');
   const [classTime, setClassTime] = useState('');
   const [classDuration, setClassDuration] = useState(60);
@@ -66,7 +111,7 @@ export default function InstructorDashboard() {
   };
 
   // ==========================================
-  // 1-CLICK EXPORT FUNCTIONS (Google Sheets / Excel)
+  // 1-CLICK EXPORT FUNCTIONS FOR GOOGLE SHEETS / EXCEL
   // ==========================================
 
   // Export Attendance Logs to CSV
@@ -126,7 +171,7 @@ export default function InstructorDashboard() {
     document.body.removeChild(link);
   };
 
-  // Create Live Zoom Session
+  // Create Live Zoom Session with Selected Course
   const handleCreateSession = async (e) => {
     e.preventDefault();
     setClassError('');
@@ -136,6 +181,7 @@ export default function InstructorDashboard() {
     try {
       await axios.post(`${API_BASE}/api/v1/schedule/create`, {
         title: classTitle,
+        course_name: targetCourse, // Direct course mapping
         description: classDesc,
         start_time: classTime,
         duration_minutes: parseInt(classDuration)
@@ -143,7 +189,7 @@ export default function InstructorDashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setClassSuccess('Live Zoom session successfully created and synced!');
+      setClassSuccess(`Live Zoom session scheduled for ${targetCourse}!`);
       setClassTitle('');
       setClassDesc('');
       setClassTime('');
@@ -154,7 +200,7 @@ export default function InstructorDashboard() {
     }
   };
 
-  // Post New Homework Set
+  // Post New Assignment
   const handleCreateAssignment = async (e) => {
     e.preventDefault();
     setAssignError('');
@@ -171,7 +217,7 @@ export default function InstructorDashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setAssignSuccess('Assignment prompt successfully posted!');
+      setAssignSuccess('Assignment prompt posted successfully!');
       setAssignTitle('');
       setAssignInstructions('');
       setAssignDueDate('');
@@ -224,11 +270,10 @@ export default function InstructorDashboard() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* 1-CLICK CSV EXPORT BAR */}
+          {/* 1-CLICK CSV EXPORT BUTTON */}
           <button
             onClick={handleExportAttendanceCSV}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-sm transition"
-            title="Download attendance records to open in Google Sheets or Excel"
           >
             <FileSpreadsheet size={15} /> Export Attendance (.CSV)
           </button>
@@ -242,10 +287,10 @@ export default function InstructorDashboard() {
         </div>
       </nav>
 
-      {/* MAIN CONTENT WORKSTATION GRID */}
+      {/* MAIN CONTENT GRID */}
       <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
 
-        {/* CARD 1: CREATE LIVE ZOOM SESSION */}
+        {/* CARD 1: CREATE LIVE ZOOM SESSION WITH COURSE DROPDOWN */}
         <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
           <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
             <Video className="text-blue-600" size={22} /> Create Live Zoom Session
@@ -268,17 +313,33 @@ export default function InstructorDashboard() {
               <input
                 type="text"
                 required
-                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
-                placeholder="e.g. Advancing React State Management"
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900"
+                placeholder="e.g. Advanced State Management"
                 value={classTitle}
                 onChange={(e) => setClassTitle(e.target.value)}
               />
             </div>
 
+            {/* Target Course Dropdown */}
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Target Course / Domain</label>
+              <select
+                value={targetCourse}
+                onChange={(e) => setTargetCourse(e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900 font-medium"
+              >
+                {courseList.map((course, idx) => (
+                  <option key={idx} value={course}>
+                    {course}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="text-xs font-semibold text-gray-700">Description</label>
               <textarea
-                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900"
                 rows="3"
                 placeholder="Class notes..."
                 value={classDesc}
@@ -292,7 +353,7 @@ export default function InstructorDashboard() {
                 <input
                   type="datetime-local"
                   required
-                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
+                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900"
                   value={classTime}
                   onChange={(e) => setClassTime(e.target.value)}
                 />
@@ -302,7 +363,7 @@ export default function InstructorDashboard() {
                 <input
                   type="number"
                   required
-                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
+                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900"
                   value={classDuration}
                   onChange={(e) => setClassDuration(e.target.value)}
                 />
@@ -318,7 +379,7 @@ export default function InstructorDashboard() {
           </form>
         </div>
 
-        {/* CARD 2: HOMEWORK GRADING WORKSTATION */}
+        {/* CARD 2: GRADING WORKSTATION */}
         <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-blue-950 flex items-center gap-2">
@@ -403,7 +464,7 @@ export default function InstructorDashboard() {
           )}
         </div>
 
-        {/* CARD 3: POST NEW HOMEWORK SET */}
+        {/* CARD 3: POST NEW ASSIGNMENT */}
         <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
           <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
             <BookOpen className="text-blue-600" size={22} /> Post New Homework Set
@@ -426,7 +487,7 @@ export default function InstructorDashboard() {
               <input
                 type="text"
                 required
-                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900"
                 placeholder="e.g. Build a MySQL CRUD API"
                 value={assignTitle}
                 onChange={(e) => setAssignTitle(e.target.value)}
@@ -436,7 +497,7 @@ export default function InstructorDashboard() {
             <div>
               <label className="text-xs font-semibold text-gray-700">Instructions</label>
               <textarea
-                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900"
                 rows="3"
                 placeholder="Describe the homework details..."
                 value={assignInstructions}
@@ -450,7 +511,7 @@ export default function InstructorDashboard() {
                 <input
                   type="datetime-local"
                   required
-                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
+                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900"
                   value={assignDueDate}
                   onChange={(e) => setAssignDueDate(e.target.value)}
                 />
@@ -459,7 +520,7 @@ export default function InstructorDashboard() {
                 <label className="text-xs font-semibold text-gray-700">Max Score</label>
                 <input
                   type="number"
-                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white text-gray-900"
+                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900"
                   value={assignMaxScore}
                   onChange={(e) => setAssignMaxScore(e.target.value)}
                 />
@@ -475,7 +536,7 @@ export default function InstructorDashboard() {
           </form>
         </div>
 
-        {/* CARD 4: ATTENDANCE LOGS WITH 1-CLICK CSV EXPORT */}
+        {/* CARD 4: ATTENDANCE LOGS WITH CSV EXPORT */}
         <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-blue-950 flex items-center gap-2">
