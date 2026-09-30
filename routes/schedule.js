@@ -5,7 +5,8 @@ const { verifyToken, authorizeRoles } = require('../authMiddleware');
 
 // ==========================================
 // 1. GET /api/v1/schedule/upcoming
-// Fetches scheduled classes filtered strictly by student's course
+// Fetches live sessions with Mentor Name ("Scheduled by: [Mentor Name]")
+// and isolates sessions based on the student's enrolled course.
 // ==========================================
 router.get('/upcoming', verifyToken, async (req, res) => {
   try {
@@ -14,7 +15,7 @@ router.get('/upcoming', verifyToken, async (req, res) => {
     let params = [];
 
     if (role === 'instructor' || role === 'admin') {
-      // Fetch all sessions with mentor name joined from users table
+      // Instructors and Admins see ALL live sessions along with the mentor's name
       query = `
         SELECT ls.*, u.full_name AS mentor_name 
         FROM live_sessions ls 
@@ -22,13 +23,14 @@ router.get('/upcoming', verifyToken, async (req, res) => {
         ORDER BY ls.start_time ASC
       `;
     } else {
-      // Fetch course-isolated sessions with mentor name for students
+      // 🎯 STUDENTS: See ONLY classes assigned to their specific enrolled course
       const studentCourse = course_name || 'FULL STACK';
       query = `
         SELECT ls.*, u.full_name AS mentor_name 
         FROM live_sessions ls 
         LEFT JOIN users u ON ls.instructor_id = u.user_id 
-        WHERE ls.course_name = ? AND ls.start_time >= NOW() - INTERVAL 2 HOUR 
+        WHERE (ls.course_name = ? OR ls.course_name IS NULL) 
+          AND ls.start_time >= NOW() - INTERVAL 2 HOUR 
         ORDER BY ls.start_time ASC
       `;
       params.push(studentCourse);
@@ -37,6 +39,7 @@ router.get('/upcoming', verifyToken, async (req, res) => {
     const [sessions] = await db.query(query, params);
     const currentTime = new Date();
 
+    // Calculate 10-minute activation window for the Zoom button
     const processedSessions = sessions.map(session => {
       const startTime = new Date(session.start_time);
       const endTime = new Date(startTime.getTime() + (session.duration_minutes || 60) * 60 * 1000);
@@ -47,39 +50,45 @@ router.get('/upcoming', verifyToken, async (req, res) => {
 
       if (currentTime < activationWindowStart) {
         buttonState = 'Starts Soon';
+        canJoin = false;
       } else if (currentTime >= activationWindowStart && currentTime <= endTime) {
         buttonState = 'Join Class Now';
         canJoin = true;
       } else {
         buttonState = 'Session Ended';
+        canJoin = false;
       }
 
       return {
         session_id: session.session_id,
         title: session.title,
         description: session.description,
-        course_name: session.course_name,
-        mentor_name: session.mentor_name || 'Assigned Mentor', // 👈 Includes Mentor Name
+        course_name: session.course_name || 'FULL STACK',
+        mentor_name: session.mentor_name || 'Assigned Mentor', // 👈 Provides Mentor's Full Name
         start_time: session.start_time,
         duration_minutes: session.duration_minutes,
         buttonState,
         canJoin,
-        zoom_join_url: session.zoom_join_url
+        zoom_join_url: session.zoom_join_url,
+        zoom_passcode: session.zoom_passcode
       };
     });
 
     res.json(processedSessions);
   } catch (err) {
-    res.status(500).json({ error: 'Database error occurred while fetching schedule.' });
+    console.error('Error fetching schedule:', err);
+    res.status(500).json({ 
+      error: 'Database error occurred while fetching schedule.', 
+      details: err.message 
+    });
   }
 });
-
 
 // ==========================================
 // 2. POST /api/v1/schedule/create
 // Instructor / Admin endpoint to schedule a new class for a specific course
 // ==========================================
-router.post('/create', verifyToken, authorizeRoles('instructor', 'admin', 'super_admin'), async (req, res) => {
+router.post('/create', verifyToken, authorizeRoles('instructor', 'admin'), async (req, res) => {
   let { title, description, course_name, zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes } = req.body;
 
   if (!title || !start_time) {
@@ -89,6 +98,7 @@ router.post('/create', verifyToken, authorizeRoles('instructor', 'admin', 'super
   // Format HTML datetime-local string (YYYY-MM-DDTHH:MM) for MySQL DATETIME
   const formattedStartTime = start_time.replace('T', ' ');
   const targetCourse = course_name || 'FULL STACK';
+  const instructorId = req.user.user_id || req.user.id || null;
 
   // Auto-generate Zoom meeting defaults if missing
   if (!zoom_meeting_id) {
@@ -103,8 +113,10 @@ router.post('/create', verifyToken, authorizeRoles('instructor', 'admin', 'super
 
   try {
     const [result] = await db.query(
-      'INSERT INTO live_sessions (title, description, course_name, zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes, instructor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [title, description || '', targetCourse, zoom_meeting_id, zoom_join_url, zoom_passcode, formattedStartTime, parseInt(duration_minutes) || 60, req.user.user_id]
+      `INSERT INTO live_sessions 
+       (title, description, course_name, zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes, instructor_id) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [title, description || '', targetCourse, zoom_meeting_id, zoom_join_url, zoom_passcode, formattedStartTime, parseInt(duration_minutes) || 60, instructorId]
     );
 
     res.status(201).json({
@@ -112,8 +124,11 @@ router.post('/create', verifyToken, authorizeRoles('instructor', 'admin', 'super
       sessionId: result.insertId
     });
   } catch (err) {
-    console.error('Error scheduling session:', err);
-    res.status(500).json({ error: 'Database error occurred while scheduling session.', details: err.message });
+    console.error('SQL Error while scheduling:', err.sqlMessage || err.message);
+    res.status(500).json({ 
+      error: 'Database error occurred while scheduling session.', 
+      sqlError: err.sqlMessage || err.message 
+    });
   }
 });
 
