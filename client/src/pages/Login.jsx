@@ -25,28 +25,48 @@ export default function Login() {
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   // Top 20 Courses List
-  const top20Courses = [
-    "Full Stack Web Development (MERN)",
-    "Python & Backend Engineering",
-    "Data Science & Machine Learning",
-    "Artificial Intelligence & Prompt Engineering",
-    "UI/UX Design & Product Interface",
-    "Cyber Security & Ethical Hacking",
-    "Cloud Computing & DevOps (AWS / Azure)",
-    "Java Enterprise & Microservices",
-    "Data Analytics & Business Intelligence",
-    "Mobile App Development (React Native / Flutter)",
-    "C++ & Data Structures Algorithms (DSA)",
-    "Digital Marketing & Growth Strategy",
-    "Software QA & Automation Testing",
-    "Embedded Systems & IoT",
-    "Blockchain & Web3 Development",
-    "Product Management & Agile Practice",
-    "Database Administration & SQL Engineering",
-    "FinTech & Algorithmic Trading",
-    "Game Development (Unity / Unreal Engine)",
-    "Network Engineering & System Admin"
-  ];
+  const courseList = [
+  "FULL STACK",
+  "Artificial Intelligence",
+  "DATA SCIENCE",
+  "DATA ANALYTICS",
+  "CYBER SECURITY",
+  "BUSINESS ANALYTICS",
+  "CLOUD COMPUTING",
+  "DSA",
+  "UI/UX",
+  "Machine Learning",
+  "DIGITAL MARKETING",
+  "EMBEDDED SYSTEMS",
+  "GEN AI",
+  "VLSI",
+  "POWER BI",
+  "AUTO CAD",
+  "DEEP LEARNING",
+  "NLP",
+  "PSYCHOLOGY",
+  "CATIA",
+  "DRONE TECHNOLOGY",
+  "SOFTWARE TESTING",
+  "NETWORKING",
+  "SYSTEM ADMINISTRATION",
+  "CYBER SECURITY ADVANCE",
+  "BIM",
+  "REVIT",
+  "STAD PRO",
+  "PCB",
+  "ROBOTICS",
+  "COMPUTER VISION",
+  "SOFTWARE DEVELOPMENT",
+  "DEVOPS",
+  "DBMS",
+  "BLOCK CHAIN",
+  "SOLID WORKS",
+  "MEDICAL CODING",
+  "SALES & MARKETING",
+  "FINANCE",
+  "HR MANAGEMENT"
+];
 
   // Handle Login
   const handleSignIn = async (e) => {
@@ -216,19 +236,19 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Select Enrolled Course</label>
-              <select
-                value={courseName}
-                onChange={(e) => setCourseName(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-gray-50/50 font-medium text-gray-800"
-              >
-                {top20Courses.map((course, idx) => (
-                  <option key={idx} value={course}>
-                    {course}
-                  </option>
-                ))}
-              </select>
-            </div>
+  <label className="block text-xs font-bold text-gray-700 mb-1">Select Enrolled Course</label>
+  <select
+    value={courseName}
+    onChange={(e) => setCourseName(e.target.value)}
+    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-gray-50/50 font-medium text-gray-800"
+  >
+    {courseList.map((course, idx) => (
+      <option key={idx} value={course}>
+        {course}
+      </option>
+    ))}
+  </select>
+</div>
 
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">Desired Email Address</label>

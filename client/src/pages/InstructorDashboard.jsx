@@ -1,12 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Video, BookOpen, Clock, LogOut, Award } from 'lucide-react';
-
-// Single logo import
+import { Video, BookOpen, Clock, LogOut, Award, Download, FileSpreadsheet } from 'lucide-react';
 import logo from '../assets/logo.png';
 
-// Dynamic API Base URL pointing to Render live backend
 const API_BASE = import.meta.env.VITE_API_URL || 'https://live-learning-portal.onrender.com';
 
 export default function InstructorDashboard() {
@@ -38,34 +35,28 @@ export default function InstructorDashboard() {
 
   const navigate = useNavigate();
 
- useEffect(() => {
-  const token = localStorage.getItem('token');
-  const role = localStorage.getItem('role');
-  const name = localStorage.getItem('userName');
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    const name = localStorage.getItem('userName');
 
-  // Allow instructor, admin, and super_admin roles
-  if (!token || (role !== 'instructor' && role !== 'admin' && role !== 'super_admin')) {
-    localStorage.clear();
-    navigate('/');
-    return;
-  }
+    if (!token || (role !== 'instructor' && role !== 'admin' && role !== 'super_admin')) {
+      localStorage.clear();
+      navigate('/');
+      return;
+    }
 
-  setUserName(name || 'Instructor / Admin');
-  fetchDashboardData(token);
-}, [navigate]);
+    setUserName(name || 'Instructor / Admin');
+    fetchDashboardData(token);
+  }, [navigate]);
 
-  // Fetch Submissions & Attendance Logs
   const fetchDashboardData = async (token) => {
     try {
-      const config = {
-        headers: { Authorization: `Bearer ${token}` }
-      };
-
-      // Fetch student submissions for grading
+      const config = { headers: { Authorization: `Bearer ${token}` } };
       const submissionRes = await axios.get(`${API_BASE}/api/v1/assignments/1/submissions`, config);
       setSubmissions(submissionRes.data || []);
 
-      // Simulating live attendance logs
+      // Live attendance logs
       setAttendance([
         { id: 1, name: 'Jane Student', email: 'student@portal.com', session: 'Intro to Node.js & MySQL', duration: '45 mins', status: 'Present' }
       ]);
@@ -74,7 +65,68 @@ export default function InstructorDashboard() {
     }
   };
 
-  // 1. Create Live Zoom Session
+  // ==========================================
+  // 1-CLICK EXPORT FUNCTIONS (Google Sheets / Excel)
+  // ==========================================
+
+  // Export Attendance Logs to CSV
+  const handleExportAttendanceCSV = () => {
+    if (!attendance || attendance.length === 0) {
+      alert("No attendance data available to export.");
+      return;
+    }
+
+    const headers = ["ID", "Student Name", "Email Address", "Session Title", "Calculated Time", "Attendance Status"];
+    const rows = attendance.map(item => [
+      item.id || '',
+      `"${(item.name || '').replace(/"/g, '""')}"`,
+      item.email || '',
+      `"${(item.session || '').replace(/"/g, '""')}"`,
+      `"${(item.duration || '').replace(/"/g, '""')}"`,
+      item.status || 'Present'
+    ]);
+
+    const csvContent = ["\ufeff" + headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Attendance_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Export Assignment Submissions to CSV
+  const handleExportSubmissionsCSV = () => {
+    if (!submissions || submissions.length === 0) {
+      alert("No submission records available to export.");
+      return;
+    }
+
+    const headers = ["Submission ID", "Student ID", "Project Repository Link", "Submission Notes", "Status", "Grade Score", "Instructor Feedback"];
+    const rows = submissions.map(sub => [
+      sub.submission_id || sub.id || '',
+      sub.student_id || '',
+      `"${(sub.external_link || '').replace(/"/g, '""')}"`,
+      `"${(sub.submission_notes || '').replace(/"/g, '""')}"`,
+      sub.status || 'Submitted',
+      sub.grade_score !== undefined && sub.grade_score !== null ? sub.grade_score : 'Not Graded',
+      `"${(sub.instructor_feedback || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = ["\ufeff" + headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Student_Submissions_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Create Live Zoom Session
   const handleCreateSession = async (e) => {
     e.preventDefault();
     setClassError('');
@@ -102,7 +154,7 @@ export default function InstructorDashboard() {
     }
   };
 
-  // 2. Post New Homework Set Prompt
+  // Post New Homework Set
   const handleCreateAssignment = async (e) => {
     e.preventDefault();
     setAssignError('');
@@ -130,7 +182,7 @@ export default function InstructorDashboard() {
     }
   };
 
-  // 3. Submit Student Grade
+  // Submit Grade
   const handleGradeSubmission = async (submissionId) => {
     setGradeError('');
     const token = localStorage.getItem('token');
@@ -163,11 +215,7 @@ export default function InstructorDashboard() {
       <nav className="bg-white/90 backdrop-blur-md shadow-sm border-b border-blue-100 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <div className="bg-white p-1 rounded-xl shadow-sm border border-blue-100 flex items-center justify-center">
-            <img 
-              src={logo} 
-              alt="Portal Logo" 
-              className="h-10 w-auto object-contain" 
-            />
+            <img src={logo} alt="Portal Logo" className="h-10 w-auto object-contain" />
           </div>
           <div>
             <h1 className="text-xl font-extrabold text-blue-900 tracking-wide">Instructor Console</h1>
@@ -175,17 +223,28 @@ export default function InstructorDashboard() {
           </div>
         </div>
 
-        <button
-          onClick={handleLogout}
-          className="flex items-center text-blue-700 hover:text-red-600 bg-blue-50 hover:bg-red-50 px-3.5 py-1.5 rounded-lg font-semibold text-sm gap-2 transition border border-blue-100"
-        >
-          <LogOut size={16} /> Logout
-        </button>
+        <div className="flex items-center gap-3">
+          {/* 1-CLICK CSV EXPORT BAR */}
+          <button
+            onClick={handleExportAttendanceCSV}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-sm transition"
+            title="Download attendance records to open in Google Sheets or Excel"
+          >
+            <FileSpreadsheet size={15} /> Export Attendance (.CSV)
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center text-blue-700 hover:text-red-600 bg-blue-50 hover:bg-red-50 px-3.5 py-1.5 rounded-lg font-semibold text-sm gap-2 transition border border-blue-100"
+          >
+            <LogOut size={16} /> Logout
+          </button>
+        </div>
       </nav>
 
       {/* MAIN CONTENT WORKSTATION GRID */}
       <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-        
+
         {/* CARD 1: CREATE LIVE ZOOM SESSION */}
         <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
           <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
@@ -261,9 +320,17 @@ export default function InstructorDashboard() {
 
         {/* CARD 2: HOMEWORK GRADING WORKSTATION */}
         <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
-          <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
-            <Award className="text-blue-600" size={22} /> Homework Grading Workstation
-          </h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-blue-950 flex items-center gap-2">
+              <Award className="text-blue-600" size={22} /> Homework Grading Workstation
+            </h2>
+            <button
+              onClick={handleExportSubmissionsCSV}
+              className="px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-bold text-xs border border-blue-200 flex items-center gap-1 transition"
+            >
+              <Download size={13} /> Export Submissions (.CSV)
+            </button>
+          </div>
 
           {submissions.length === 0 ? (
             <p className="text-sm text-gray-500 py-6 text-center">No pending student submissions to evaluate.</p>
@@ -408,11 +475,19 @@ export default function InstructorDashboard() {
           </form>
         </div>
 
-        {/* CARD 4: ATTENDANCE LOGS */}
+        {/* CARD 4: ATTENDANCE LOGS WITH 1-CLICK CSV EXPORT */}
         <div className="bg-white/90 backdrop-blur-sm text-gray-900 p-6 rounded-2xl shadow-md border border-blue-100">
-          <h2 className="text-xl font-bold text-blue-950 mb-4 flex items-center gap-2">
-            <Clock className="text-blue-600" size={22} /> Dynamic Live Session Attendance Logs
-          </h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-blue-950 flex items-center gap-2">
+              <Clock className="text-blue-600" size={22} /> Dynamic Attendance Logs
+            </h2>
+            <button
+              onClick={handleExportAttendanceCSV}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-sm transition flex items-center gap-1.5"
+            >
+              📊 Export to CSV
+            </button>
+          </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -427,7 +502,10 @@ export default function InstructorDashboard() {
               <tbody className="divide-y divide-gray-100">
                 {attendance.map((log) => (
                   <tr key={log.id} className="hover:bg-blue-50/40">
-                    <td className="p-2.5 font-bold text-gray-900">{log.name}</td>
+                    <td className="p-2.5 font-bold text-gray-900">
+                      {log.name} <br />
+                      <span className="text-[10px] text-gray-400 font-normal">{log.email}</span>
+                    </td>
                     <td className="p-2.5 text-gray-600">{log.session}</td>
                     <td className="p-2.5 text-blue-700 font-bold">{log.duration}</td>
                     <td className="p-2.5 text-green-700 font-extrabold">{log.status}</td>
