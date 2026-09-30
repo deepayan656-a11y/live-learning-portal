@@ -6,16 +6,17 @@ import logo from '../assets/logo.png';
 export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
 
-  // Sign In Form State
+  // Sign In State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Sign Up Form State
+  // Sign Up State
   const [fullName, setFullName] = useState('');
   const [signUpEmail, setSignUpEmail] = useState('');
   const [signUpPassword, setSignUpPassword] = useState('');
+  const [courseName, setCourseName] = useState('Full Stack Web Development (MERN)'); // Added Course State
 
-  // Status Messages & Loading State
+  // Status Messages & Loading
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,7 +24,31 @@ export default function Login() {
   const navigate = useNavigate();
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-  // Handle Sign In
+  // Top 20 Courses List
+  const top20Courses = [
+    "Full Stack Web Development (MERN)",
+    "Python & Backend Engineering",
+    "Data Science & Machine Learning",
+    "Artificial Intelligence & Prompt Engineering",
+    "UI/UX Design & Product Interface",
+    "Cyber Security & Ethical Hacking",
+    "Cloud Computing & DevOps (AWS / Azure)",
+    "Java Enterprise & Microservices",
+    "Data Analytics & Business Intelligence",
+    "Mobile App Development (React Native / Flutter)",
+    "C++ & Data Structures Algorithms (DSA)",
+    "Digital Marketing & Growth Strategy",
+    "Software QA & Automation Testing",
+    "Embedded Systems & IoT",
+    "Blockchain & Web3 Development",
+    "Product Management & Agile Practice",
+    "Database Administration & SQL Engineering",
+    "FinTech & Algorithmic Trading",
+    "Game Development (Unity / Unreal Engine)",
+    "Network Engineering & System Admin"
+  ];
+
+  // Handle Login
   const handleSignIn = async (e) => {
     e.preventDefault();
     setError('');
@@ -39,14 +64,17 @@ export default function Login() {
       const userName = userObj.full_name || userObj.userName || res.data.userName || 'Student';
       const userEmail = userObj.email || res.data.email || email;
       const userId = userObj.id || userObj.user_id || res.data.user_id;
+      const userCourse = userObj.course_name || res.data.course_name || '';
 
+      // Save user session details in localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('role', role);
       localStorage.setItem('userName', userName);
       localStorage.setItem('userEmail', userEmail);
       if (userId) localStorage.setItem('userId', userId);
+      if (userCourse) localStorage.setItem('courseName', userCourse);
 
-      if (role === 'instructor' || role === 'admin') {
+      if (role === 'instructor' || role === 'super_admin') {
         navigate('/instructor');
       } else {
         navigate('/student');
@@ -54,7 +82,7 @@ export default function Login() {
     } catch (err) {
       console.error('Login Error:', err);
       if (!err.response) {
-        setError('Cannot connect to backend server. Make sure your Node.js backend server is running on port 5000!');
+        setError('Cannot connect to backend server.');
       } else {
         setError(err.response.data?.error || 'Login failed. Please check your credentials.');
       }
@@ -63,7 +91,7 @@ export default function Login() {
     }
   };
 
-  // Handle New Student Sign Up
+  // Handle New Student Registration
   const handleSignUp = async (e) => {
     e.preventDefault();
     setError('');
@@ -75,10 +103,11 @@ export default function Login() {
         full_name: fullName,
         email: signUpEmail,
         password: signUpPassword,
-        role: 'student'
+        role: 'student',
+        course_name: courseName // Sending selected course
       });
 
-      setSuccess('Student profile created! Please sign in with your credentials.');
+      setSuccess('Student profile created! Please sign in with your email and password.');
       setEmail(signUpEmail);
       setFullName('');
       setSignUpEmail('');
@@ -90,10 +119,8 @@ export default function Login() {
     } catch (err) {
       console.error('Sign Up Error:', err);
       if (!err.response) {
-        // Accurately inform the user about backend connection failure
-        setError('Backend server offline (net::ERR_CONNECTION_REFUSED). Please start your Node.js server with "node server.js".');
+        setError('Backend server offline. Please make sure the backend is running.');
       } else {
-        // Server responded with an actual HTTP error code (e.g. 400 Duplicate Email)
         setError(err.response.data?.error || 'Registration failed.');
       }
     } finally {
@@ -105,12 +132,12 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 flex items-center justify-center p-4">
       <div className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-xl border border-blue-100 max-w-md w-full">
         
-        {/* Branding Logo & Header */}
+        {/* Logo & Header */}
         <div className="text-center mb-6">
           <img src={logo} alt="Portal Logo" className="h-10 w-auto mx-auto mb-2 object-contain" />
           <h2 className="text-2xl font-extrabold text-blue-950">Live Learning Portal</h2>
           <p className="text-xs text-blue-600 mt-1">
-            {isSignUp ? 'Register a new student profile' : 'Sign in to access your personal student workspace'}
+            {isSignUp ? 'Register a new student account' : 'Sign in to access your personal student portal'}
           </p>
         </div>
 
@@ -174,7 +201,7 @@ export default function Login() {
             </button>
           </form>
         ) : (
-          /* NEW STUDENT SIGN UP FORM */
+          /* NEW STUDENT SIGN UP FORM WITH COURSE SELECTION */
           <form onSubmit={handleSignUp} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">Full Name</label>
@@ -187,6 +214,22 @@ export default function Login() {
                 onChange={(e) => setFullName(e.target.value)}
               />
             </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Select Enrolled Course</label>
+              <select
+                value={courseName}
+                onChange={(e) => setCourseName(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-gray-50/50 font-medium text-gray-800"
+              >
+                {top20Courses.map((course, idx) => (
+                  <option key={idx} value={course}>
+                    {course}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">Desired Email Address</label>
               <input
@@ -198,6 +241,7 @@ export default function Login() {
                 onChange={(e) => setSignUpEmail(e.target.value)}
               />
             </div>
+
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">Password</label>
               <input
@@ -210,6 +254,7 @@ export default function Login() {
                 onChange={(e) => setSignUpPassword(e.target.value)}
               />
             </div>
+
             <button 
               type="submit" 
               disabled={loading} 

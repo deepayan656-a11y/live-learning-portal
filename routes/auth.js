@@ -4,115 +4,110 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 
-// POST /api/v1/auth/signup
-// Registers a new user (Student, Instructor, or Admin)
+// ==========================================
+// 1. POST /api/v1/auth/signup
+// Registers a new user (Student, Instructor, or Admin) with course assignment
+// ==========================================
 router.post('/signup', async (req, res) => {
-    const { full_name, email, password, role } = req.body;
+  const { full_name, email, password, role, course_name } = req.body;
 
-    // 1. Basic validation
-    if (!full_name || !email || !password) {
-        return res.status(400).json({ error: 'Please provide full_name, email, and password.' });
-    }
-
-    try {
-        // 2. Hash the password securely so it isn't saved in plain text
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        // 3. Insert user details into the 'users' database table
-        const [result] = await db.query(
-            'INSERT INTO users (full_name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-            [full_name, email, hashedPassword, role || 'student']
-        );
-
-        res.status(201).json({ 
-            message: 'User registered successfully!', 
-            userId: result.insertId 
-        });
-    } catch (err) {
-        console.error("Signup Database Error:", err);
-
-        // Handle duplicate email database error
-        if (err.code === 'ER_DUP_ENTRY') {
-            return res.status(400).json({ error: 'This email is already registered.' });
-        }
-        res.status(500).json({ error: 'Database error occurred during signup.', details: err.message });
-    }
-});
-
-// POST /api/v1/auth/login
-// Verifies user and returns a JSON Web Token (JWT)
-router.post('/login', async (req, res) => {
-    const { email, password } = req.body;
-
-    // 1. Validation
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Please provide both email and password.' });
-    }
-
-    try {
-        // 2. Look up the user by email
-        const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-        if (rows.length === 0) {
-            return res.status(400).json({ error: 'Invalid email or password.' });
-        }
-
-        // --- THE FIXED LINE: Extract the single user object from the array ---
-        const user = rows[0];
-
-        // 3. Compare submitted password with the hashed database password
-        const isMatch = await bcrypt.compare(password, user.password_hash);
-        if (!isMatch) {
-            return res.status(400).json({ error: 'Invalid email or password.' });
-        }
-
-        // 4. Generate a JWT secure token containing the user's ID and Role
-        const token = jwt.sign(
-  { id: user.user_id, role: user.role },
-  process.env.JWT_SECRET,
-  { expiresIn: '7d' } // Token remains valid for 7 days
-);
-
-        // 5. Send back success message, token, and user details
-   res.json({
-        message: 'Login successful!',
-        token,
-        role: user.role,
-        userName: user.full_name,
-        email: user.email,
-        user_id: user.user_id
-    });
-    } catch (err) {
-        console.error("Login Database Error:", err);
-        res.status(500).json({ error: 'Database error occurred during login.', details: err.message });
-    }
-});
-
-module.exports = router;
-router.post('/signup', async (req, res) => {
-  const { full_name, email, password, role } = req.body;
-
+  // Basic validation
   if (!full_name || !email || !password) {
-    return res.status(400).json({ error: 'Full name, email, and password are required.' });
+    return res.status(400).json({ error: 'Please provide full_name, email, and password.' });
   }
 
   try {
+    // Check if email is already registered
     const [existing] = await db.query('SELECT user_id FROM users WHERE email = ?', [email]);
     if (existing.length > 0) {
       return res.status(400).json({ error: 'This email address is already registered.' });
     }
 
-    const password_hash = await bcrypt.hash(password, 10);
-    const userRole = role || 'student';
+    // Hash the password securely
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Default values
+    const userRole = role || 'student';
+    const userCourse = course_name || 'Full Stack Web Development (MERN)';
+
+    // Insert user into database including course_name
     const [result] = await db.query(
-      'INSERT INTO users (full_name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-      [full_name, email, password_hash, userRole]
+      'INSERT INTO users (full_name, email, password_hash, role, course_name) VALUES (?, ?, ?, ?, ?)',
+      [full_name, email, hashedPassword, userRole, userCourse]
     );
 
-    res.status(201).json({ message: 'Student account created successfully!', user_id: result.insertId });
+    res.status(201).json({
+      message: 'Student account created successfully!',
+      userId: result.insertId
+    });
   } catch (err) {
-    console.error('Signup Error:', err);
-    res.status(500).json({ error: 'Internal server error during registration.' });
+    console.error('Signup Database Error:', err);
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'This email is already registered.' });
+    }
+    res.status(500).json({ error: 'Database error occurred during signup.', details: err.message });
   }
 });
+
+// ==========================================
+// 2. POST /api/v1/auth/login
+// Verifies user and returns JWT token containing course_name
+// ==========================================
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Please provide both email and password.' });
+  }
+
+  try {
+    // Look up user by email
+    const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid email or password.' });
+    }
+
+    const user = rows;
+
+    // Check account status if is_active column exists
+    if (user.is_active !== undefined && user.is_active === 0) {
+      return res.status(403).json({ error: 'Your account access has been revoked by Super Admin.' });
+    }
+
+    // Compare password hash
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Invalid email or password.' });
+    }
+
+    // Generate JWT token containing user_id, role, and course_name
+    const token = jwt.sign(
+      {
+        user_id: user.user_id,
+        role: user.role,
+        course_name: user.course_name || 'Full Stack Web Development (MERN)'
+      },
+      process.env.JWT_SECRET || 'super_secret_key_for_portal_tokens',
+      { expiresIn: '24h' }
+    );
+
+    // Return response with user details
+    res.json({
+      message: 'Login successful!',
+      token,
+      user: {
+        id: user.user_id,
+        full_name: user.full_name,
+        email: user.email,
+        role: user.role,
+        course_name: user.course_name || 'Full Stack Web Development (MERN)'
+      }
+    });
+  } catch (err) {
+    console.error('Login Database Error:', err);
+    res.status(500).json({ error: 'Database error occurred during login.', details: err.message });
+  }
+});
+
+module.exports = router;
