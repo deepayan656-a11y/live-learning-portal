@@ -3,13 +3,11 @@ const router = express.Router();
 const db = require('../db');
 const { verifyToken, authorizeRoles } = require('../authMiddleware');
 
-// ==========================================
-// 1. GET /api/v1/schedule/upcoming
-// ==========================================
+// GET /api/v1/schedule/upcoming
 router.get('/upcoming', verifyToken, async (req, res) => {
   try {
-    const userRole = req.user.role;
-    const userCourse = req.user.course_name;
+    const userRole = req.user ? req.user.role : 'student';
+    const userCourse = req.user ? req.user.course_name : 'FULL STACK';
 
     let query = '';
     let params = [];
@@ -72,13 +70,11 @@ router.get('/upcoming', verifyToken, async (req, res) => {
     res.json(processedSessions);
   } catch (err) {
     console.error('Error fetching schedule:', err);
-    res.status(500).json({ error: 'Database error occurred while fetching schedule.', details: err.message });
+    res.status(500).json({ error: `Database Error: ${err.sqlMessage || err.message}` });
   }
 });
 
-// ==========================================
-// 2. POST /api/v1/schedule/create
-// ==========================================
+// POST /api/v1/schedule/create
 router.post('/create', verifyToken, authorizeRoles('instructor', 'admin'), async (req, res) => {
   const { title, description, course_name, zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes } = req.body;
 
@@ -86,24 +82,26 @@ router.post('/create', verifyToken, authorizeRoles('instructor', 'admin'), async
     return res.status(400).json({ error: 'Please provide title and start_time.' });
   }
 
-  // 🛡️ SANITIZE ALL VALUES (replaces undefined with fallback defaults)
+  // 1. Format DATETIME string for MySQL (YYYY-MM-DD HH:MM:SS)
+  let formattedStartTime = String(start_time).replace('T', ' ');
+  if (formattedStartTime.length === 16) {
+    formattedStartTime += ':00';
+  }
+
+  // 2. Extract instructor_id from JWT payload safely
+  const instructorId = req.user ? (req.user.user_id || req.user.id) : null;
+  if (!instructorId) {
+    return res.status(400).json({ error: 'Instructor ID missing from token. Please log out and sign in again.' });
+  }
+
+  // 3. Fallbacks for optional parameters
   const titleVal = String(title).trim();
   const descVal = description ? String(description).trim() : '';
   const courseVal = course_name ? String(course_name).trim() : 'FULL STACK';
   const meetingIdVal = zoom_meeting_id ? String(zoom_meeting_id) : Math.floor(1000000000 + Math.random() * 9000000000).toString();
   const joinUrlVal = zoom_join_url ? String(zoom_join_url) : `https://zoom.us/j/${meetingIdVal}`;
   const passcodeVal = zoom_passcode ? String(zoom_passcode) : 'learn123';
-
-  // Format datetime for MySQL (YYYY-MM-DD HH:MM:SS)
-  let formattedStartTime = String(start_time).replace('T', ' ');
-  if (formattedStartTime.length === 16) {
-    formattedStartTime += ':00';
-  }
-
   const durationVal = parseInt(duration_minutes, 10) || 60;
-  
-  // Extract user ID safely from JWT payload
-  const instructorIdVal = req.user ? (req.user.user_id || req.user.id || 1) : 1;
 
   try {
     const [result] = await db.query(
@@ -119,7 +117,7 @@ router.post('/create', verifyToken, authorizeRoles('instructor', 'admin'), async
         passcodeVal,
         formattedStartTime,
         durationVal,
-        instructorIdVal
+        instructorId
       ]
     );
 
@@ -130,8 +128,7 @@ router.post('/create', verifyToken, authorizeRoles('instructor', 'admin'), async
   } catch (err) {
     console.error('SQL Execution Error:', err);
     res.status(500).json({ 
-      error: 'Database error occurred while scheduling session.', 
-      sqlError: err.sqlMessage || err.message 
+      error: `Database Error: ${err.sqlMessage || err.message}` 
     });
   }
 });

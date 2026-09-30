@@ -250,8 +250,9 @@ const handleCreateSession = async (e) => {
     setClassDuration(60);
     fetchDashboardData(token);
   } catch (err) {
-    // Displays the exact SQL or session error from the server response
-    setClassError(err.response?.data?.error || err.response?.data?.sqlError || 'Failed to create session.');
+    // Captures the exact SQL message from the backend response
+    const serverMessage = err.response?.data?.error || 'Failed to create session.';
+    setClassError(serverMessage);
   }
 };
   // Post New Assignment
