@@ -226,34 +226,34 @@ export default function InstructorDashboard() {
   };
 
   // Schedule Live Zoom Class
-  const handleCreateSession = async (e) => {
-    e.preventDefault();
-    setClassError('');
-    setClassSuccess('');
-    const token = localStorage.getItem('token');
+const handleCreateSession = async (e) => {
+  e.preventDefault();
+  setClassError('');
+  setClassSuccess('');
+  const token = localStorage.getItem('token');
 
-    try {
-      await axios.post(`${API_BASE}/api/v1/schedule/create`, {
-        title: classTitle,
-        course_name: targetCourse,
-        description: classDesc,
-        start_time: classTime,
-        duration_minutes: parseInt(classDuration)
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+  try {
+    await axios.post(`${API_BASE}/api/v1/schedule/create`, {
+      title: classTitle,
+      course_name: targetCourse,
+      description: classDesc,
+      start_time: classTime,
+      duration_minutes: parseInt(classDuration)
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-      setClassSuccess(`Live Zoom class scheduled for ${targetCourse}!`);
-      setClassTitle('');
-      setClassDesc('');
-      setClassTime('');
-      setClassDuration(60);
-      fetchDashboardData(token);
-    } catch (err) {
-      setClassError(err.response?.data?.error || 'Failed to create session.');
-    }
-  };
-
+    setClassSuccess(`Live Zoom class scheduled for ${targetCourse}!`);
+    setClassTitle('');
+    setClassDesc('');
+    setClassTime('');
+    setClassDuration(60);
+    fetchDashboardData(token);
+  } catch (err) {
+    // Displays the exact SQL or session error from the server response
+    setClassError(err.response?.data?.error || err.response?.data?.sqlError || 'Failed to create session.');
+  }
+};
   // Post New Assignment
   const handleCreateAssignment = async (e) => {
     e.preventDefault();
