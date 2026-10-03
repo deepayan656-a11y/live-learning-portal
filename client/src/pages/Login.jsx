@@ -91,6 +91,9 @@ export default function Login() {
       localStorage.setItem('role', role);
       localStorage.setItem('userName', userName);
       localStorage.setItem('userEmail', userEmail);
+      localStorage.setItem('courseName', res.data.course_name || 'FULL STACK');
+localStorage.setItem('duration', res.data.duration || '6 Months');
+localStorage.setItem('collegeName', res.data.college_name || 'N/A');
       if (userId) localStorage.setItem('userId', userId);
       if (userCourse) localStorage.setItem('courseName', userCourse);
 

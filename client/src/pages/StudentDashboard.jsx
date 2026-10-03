@@ -165,24 +165,29 @@ export default function StudentDashboard() {
         
         {/* Personal Student Profile Header */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-100 flex items-center justify-between col-span-full">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xl font-black shadow-md">
-              {(userName || 'S').charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">{userName || 'Student Workspace'}</h2>
-              <p className="text-xs text-gray-500 mt-0.5">{localStorage.getItem('userEmail') || 'Registered Student'}</p>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200 capitalize">
-                  Role: {localStorage.getItem('role') || 'student'}
-                </span>
-                <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> Active Workspace
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+  <div className="flex items-center gap-4">
+    <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xl font-black shadow-md">
+      {(userName || 'S').charAt(0).toUpperCase()}
+    </div>
+    <div>
+      <h2 className="text-xl font-bold text-gray-900">{userName || 'Student Workspace'}</h2>
+      <p className="text-xs text-gray-500 mt-0.5">{localStorage.getItem('userEmail') || 'Registered Student'}</p>
+      
+      {/* Course, Duration & College Badge Row */}
+      <div className="flex flex-wrap items-center gap-2 mt-2">
+        <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg border border-blue-200">
+          📚 Course: {localStorage.getItem('courseName') || 'FULL STACK'}
+        </span>
+        <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200">
+          ⏳ Duration: {localStorage.getItem('duration') || '6 Months'}
+        </span>
+        <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg border border-slate-200">
+          🏛️ College: {localStorage.getItem('collegeName') || 'N/A'}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
 
         {/* Scheduled Live Classes */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-100">
@@ -206,25 +211,37 @@ export default function StudentDashboard() {
                       </p>
                     </div>
 
-                    {status.active ? (
-                      <a
-                        href={session.zoom_join_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow transition"
-                      >
-                        {status.label}
-                      </a>
-                    ) : (
-                      <span className="bg-gray-100 text-gray-500 text-xs px-3 py-1.5 rounded-md font-medium">
-                        {status.label}
-                      </span>
-                    )}
+                   {status.active ? (
+  <a
+    href={session.zoom_join_url}
+    target="_blank"
+    rel="noreferrer"
+    className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow transition"
+  >
+    Join Class Now
+  </a>
+) : status.label === 'Session Ended' && session.zoom_join_url ? (
+  <a
+    href={session.zoom_join_url}
+    target="_blank"
+    rel="noreferrer"
+    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow transition flex items-center gap-1"
+  >
+    🎥 View Recording
+  </a>
+) : (
+  <span className="bg-gray-100 text-gray-500 text-xs px-3 py-1.5 rounded-md font-medium">
+    {status.label}
+  </span>
+)}
                   </div>
                 );
               })}
             </div>
           )}
+          <p className="text-xs text-indigo-600 font-semibold mt-1">
+  🔑 Meeting Passcode: <span className="bg-indigo-50 px-2 py-0.5 rounded">{session.zoom_passcode || 'learn123'}</span>
+</p>
         </div>
 
         {/* Assignment Hub */}

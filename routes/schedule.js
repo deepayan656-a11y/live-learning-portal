@@ -77,7 +77,13 @@ router.get('/upcoming', verifyToken, async (req, res) => {
 // POST /api/v1/schedule/create
 router.post('/create', verifyToken, authorizeRoles('instructor', 'admin'), async (req, res) => {
   const { title, description, course_name, zoom_meeting_id, zoom_join_url, zoom_passcode, start_time, duration_minutes } = req.body;
-
+if (!zoom_passcode) {
+  zoom_passcode = 'learn123';
+}
+// Embed passcode into the Zoom URL so users aren't prompted manually
+if (!zoom_join_url) {
+  zoom_join_url = `https://zoom.us/j/${zoom_meeting_id}?pwd=${zoom_passcode}`;
+}
   if (!title || !start_time) {
     return res.status(400).json({ error: 'Please provide title and start_time.' });
   }
